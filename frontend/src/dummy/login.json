@@ -1,0 +1,9 @@
+{
+  "user": {
+    "id": "usr_001",
+    "name": "Alex Chen",
+    "email": "name@example.com",
+    "password": "password123",
+    "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"
+  }
+}

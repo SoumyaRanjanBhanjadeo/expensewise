@@ -1,0 +1,62 @@
+[
+  {
+    "id": "cat_1",
+    "name": "Food & Beverages",
+    "emoji": "🍕",
+    "spent": "₹2450",
+    "spentAmount": 2450,
+    "budget": 3000,
+    "percentage": "81.67%",
+    "progress": 0.8167,
+    "progressColor": "#EAB308",
+    "leftAmount": "₹550 Left"
+  },
+  {
+    "id": "cat_2",
+    "name": "Shopping",
+    "emoji": "🛍️",
+    "spent": "₹1000",
+    "spentAmount": 1000,
+    "budget": 1500,
+    "percentage": "66.67%",
+    "progress": 0.6667,
+    "progressColor": "#EAB308",
+    "leftAmount": "₹500 Left"
+  },
+  {
+    "id": "cat_3",
+    "name": "Transportation",
+    "emoji": "🚙",
+    "spent": "₹1300",
+    "spentAmount": 1300,
+    "budget": 1500,
+    "percentage": "86.67%",
+    "progress": 0.8667,
+    "progressColor": "#16A34A",
+    "leftAmount": "₹200 Left"
+  },
+  {
+    "id": "cat_4",
+    "name": "Grocery",
+    "emoji": "🛒",
+    "spent": "₹200",
+    "spentAmount": 200,
+    "budget": 1000,
+    "percentage": "20%",
+    "progress": 0.2,
+    "progressColor": "#EAB308",
+    "leftAmount": "₹800 Left"
+  },
+  {
+    "id": "cat_5",
+    "name": "Entertainment",
+    "emoji": "🍿",
+    "spent": "₹1000",
+    "spentAmount": 1000,
+    "budget": 2000,
+    "percentage": "50%",
+    "progress": 0.5,
+    "progressColor": "#0F4634",
+    "leftAmount": "₹1000 Left"
+  }
+]

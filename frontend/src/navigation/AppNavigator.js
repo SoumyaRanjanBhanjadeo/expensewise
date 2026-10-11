@@ -5,7 +5,9 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import SplashScreen from "../screens/SplashScreen";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
-import DashboardScreen from "../screens/DashboardScreen";
+import MainScreen from "../screens/MainScreen";
+import RecieptModalScreen from "../screens/RecieptModalScreen";
+import ProfileScreen from "../screens/ProfileScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -46,8 +48,36 @@ export default function AppNavigator() {
         />
         <Stack.Screen
           name="Dashboard"
-          component={DashboardScreen}
+          component={MainScreen}
           options={{ animation: "fade" }}
+        />
+        <Stack.Screen
+          name="Transactions"
+          component={MainScreen}
+          initialParams={{ initialTab: "transactions" }}
+          options={{ animation: "fade" }}
+        />
+        <Stack.Screen
+          name="Receipts"
+          component={MainScreen}
+          initialParams={{ initialTab: "receipts" }}
+          options={{ animation: "fade" }}
+        />
+        <Stack.Screen
+          name="Insights"
+          component={MainScreen}
+          initialParams={{ initialTab: "analytics" }}
+          options={{ animation: "fade" }}
+        />
+        <Stack.Screen
+          name="RecieptModalScreen"
+          component={RecieptModalScreen}
+          options={{ animation: "slide_from_bottom" }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ animation: "slide_from_right" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

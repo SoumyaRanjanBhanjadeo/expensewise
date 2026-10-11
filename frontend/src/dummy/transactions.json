@@ -1,0 +1,130 @@
+{
+  "filters": ["All", "Card", "Bank", "Cash"],
+  "groups": [
+    {
+      "date": "Today",
+      "transactions": [
+        {
+          "id": "tx_101",
+          "title": "Coffee & Snacks",
+          "category": "Food & Beverages",
+          "paymentMethod": "UPI",
+          "filterType": "Bank",
+          "amount": "-₹250.00",
+          "isCredit": false,
+          "time": "02:30 PM",
+          "emoji": "🍕"
+        }
+      ]
+    },
+    {
+      "date": "Yesterday",
+      "transactions": [
+        {
+          "id": "tx_102",
+          "title": "BigBasket",
+          "category": "Grocery",
+          "paymentMethod": "Card",
+          "filterType": "Card",
+          "amount": "-₹200.00",
+          "isCredit": false,
+          "time": "10:40 PM",
+          "emoji": "🛒"
+        },
+        {
+          "id": "tx_103",
+          "title": "Uber Ride",
+          "category": "Transportation",
+          "paymentMethod": "UPI",
+          "filterType": "Bank",
+          "amount": "-₹110.00",
+          "isCredit": false,
+          "time": "02:33 PM",
+          "emoji": "🚙"
+        },
+        {
+          "id": "tx_104",
+          "title": "Sneakers",
+          "category": "Shopping",
+          "paymentMethod": "Card",
+          "filterType": "Card",
+          "amount": "-₹200.00",
+          "isCredit": false,
+          "time": "02:50 PM",
+          "emoji": "🛍️"
+        },
+        {
+          "id": "tx_105",
+          "title": "Lunch with Team",
+          "category": "Food & Beverages",
+          "paymentMethod": "UPI",
+          "filterType": "Bank",
+          "amount": "-₹300.00",
+          "isCredit": false,
+          "time": "12:24 PM",
+          "emoji": "🍕"
+        }
+      ]
+    },
+    {
+      "date": "20 May 2026",
+      "transactions": [
+        {
+          "id": "tx_106",
+          "title": "Monthly Salary",
+          "category": "Credits",
+          "paymentMethod": "Bank Transfer",
+          "filterType": "Bank",
+          "amount": "+₹10,000.00",
+          "isCredit": true,
+          "time": "02:44 PM",
+          "emoji": "💰"
+        },
+        {
+          "id": "tx_107",
+          "title": "Starbucks Coffee",
+          "category": "Food & Beverages",
+          "paymentMethod": "UPI",
+          "filterType": "Bank",
+          "amount": "-₹100.00",
+          "isCredit": false,
+          "time": "03:50 PM",
+          "emoji": "🍕"
+        },
+        {
+          "id": "tx_108",
+          "title": "Uber Ride",
+          "category": "Transportation",
+          "paymentMethod": "UPI",
+          "filterType": "Bank",
+          "amount": "-₹50.00",
+          "isCredit": false,
+          "time": "07:30 PM",
+          "emoji": "🚙"
+        },
+        {
+          "id": "tx_109",
+          "title": "Netflix Subscription",
+          "category": "Entertainment",
+          "paymentMethod": "Card",
+          "filterType": "Card",
+          "amount": "-₹100.00",
+          "isCredit": false,
+          "time": "09:12 PM",
+          "emoji": "🍿"
+        },
+        {
+          "id": "tx_110",
+          "title": "Farmer's Market",
+          "category": "Grocery",
+          "paymentMethod": "Cash",
+          "filterType": "Cash",
+          "amount": "-₹45.00",
+          "isCredit": false,
+          "time": "11:20 AM",
+          "emoji": "🥬"
+        }
+      ]
+    }
+  ]
+}

@@ -9,9 +9,13 @@ import {
   ScrollView,
   StatusBar,
   Image,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import * as LocalAuthentication from "expo-local-authentication";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import loginData from "../dummy/login.json";
 
 export default function LoginScreen({ navigation }) {
@@ -27,6 +31,126 @@ export default function LoginScreen({ navigation }) {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
+  // Biometric states
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricEnrolled, setBiometricEnrolled] = useState(false);
+  const [biometricType, setBiometricType] = useState("fingerprint"); // "face" | "fingerprint"
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  useEffect(() => {
+    checkBiometrics();
+  }, []);
+
+  const checkBiometrics = async () => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      setBiometricSupported(hasHardware);
+
+      if (hasHardware) {
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        setBiometricEnrolled(isEnrolled);
+
+        const types =
+          await LocalAuthentication.supportedAuthenticationTypesAsync();
+        if (
+          types.includes(
+            LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION,
+          )
+        ) {
+          setBiometricType("face");
+        } else {
+          setBiometricType("fingerprint");
+        }
+      }
+    } catch (err) {
+      console.warn("Biometrics check error:", err);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    setErrorMessage("");
+    setSuccessMessage("");
+    setIsAuthenticating(true);
+
+    try {
+      // Check stored preference
+      const savedPref = await AsyncStorage.getItem("@expensewise_biometrics");
+      if (savedPref === "false") {
+        Alert.alert(
+          "Biometrics Disabled",
+          "Biometric login is currently disabled in your Profile settings. Please enable it in Settings or sign in using your password.",
+        );
+        setIsAuthenticating(false);
+        return;
+      }
+
+      const hasHw = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      // If hardware or enrollment is not available on this device/emulator, provide demo option
+      if (!hasHw || !isEnrolled) {
+        Alert.alert(
+          "Biometric Authentication",
+          `Biometric hardware or registered ${
+            biometricType === "face" ? "Face ID" : "Fingerprint"
+          } was not detected on this device.\n\nWould you like to simulate a successful biometric login?`,
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+              onPress: () => setIsAuthenticating(false),
+            },
+            {
+              text: "Simulate Login",
+              onPress: () => {
+                setSuccessMessage("Biometric verified! Signing in...");
+                setTimeout(() => {
+                  navigation?.replace("Dashboard");
+                }, 350);
+              },
+            },
+          ],
+        );
+        return;
+      }
+
+      const promptMsg =
+        biometricType === "face"
+          ? "Scan your face to unlock ExpenseWise"
+          : "Scan your fingerprint to unlock ExpenseWise";
+
+      const authResult = await LocalAuthentication.authenticateAsync({
+        promptMessage: promptMsg,
+        cancelLabel: "Cancel",
+        fallbackLabel: "Use Password",
+        disableDeviceFallback: false,
+      });
+
+      if (authResult.success) {
+        setSuccessMessage("Biometric verified! Signing in...");
+        setTimeout(() => {
+          navigation?.replace("Dashboard");
+        }, 300);
+      } else {
+        if (
+          authResult.error !== "user_cancel" &&
+          authResult.error !== "app_cancel"
+        ) {
+          setErrorMessage(
+            "Biometric verification was not recognized. Please try again or use your password.",
+          );
+        }
+      }
+    } catch (err) {
+      console.warn("Biometrics error:", err);
+      setErrorMessage(
+        "Biometric login encountered an issue. Please enter your password.",
+      );
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
   const handleLogin = () => {
     setErrorMessage("");
     // Accept matching credentials or default login
@@ -37,7 +161,9 @@ export default function LoginScreen({ navigation }) {
     ) {
       navigation?.replace("Dashboard");
     } else {
-      setErrorMessage(`Invalid credentials. Demo: ${loginData.user.email} / ${loginData.user.password}`);
+      setErrorMessage(
+        `Invalid credentials. Demo: ${loginData.user.email} / ${loginData.user.password}`,
+      );
     }
   };
 
@@ -387,7 +513,7 @@ export default function LoginScreen({ navigation }) {
                       flexDirection: "row",
                       alignItems: "center",
                       justifyContent: "center",
-                      paddingVertical: 11,
+                      paddingVertical: 12,
                       paddingHorizontal: 16,
                       borderRadius: 12,
                     }}
@@ -398,7 +524,6 @@ export default function LoginScreen({ navigation }) {
                         fontWeight: "700",
                         fontSize: 14,
                         letterSpacing: 0.5,
-                        marginRight: 6,
                       }}
                     >
                       Sign In
@@ -415,38 +540,93 @@ export default function LoginScreen({ navigation }) {
                   <View className="flex-1 h-[1px] bg-emerald-500/20" />
                 </View>
 
-                {/* Google Account Login */}
-                <TouchableOpacity
-                  onPress={handleGoogleLogin}
-                  activeOpacity={0.8}
+                {/* Alternative Logins: Google & Biometric Option */}
+                <View
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    justifyContent: "center",
-                    paddingVertical: 11,
-                    paddingHorizontal: 16,
-                    borderRadius: 12,
-                    backgroundColor: "rgba(2, 24, 18, 0.9)",
-                    borderWidth: 1,
-                    borderColor: "rgba(16, 185, 129, 0.3)",
+                    gap: 10,
                   }}
                 >
-                  <Ionicons
-                    name="logo-google"
-                    size={18}
-                    color="#34D399"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text
+                  <TouchableOpacity
+                    onPress={handleGoogleLogin}
+                    activeOpacity={0.8}
                     style={{
-                      color: "#D1FAE5",
-                      fontWeight: "600",
-                      fontSize: 13,
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingVertical: 11,
+                      paddingHorizontal: 10,
+                      borderRadius: 12,
+                      backgroundColor: "rgba(2, 24, 18, 0.9)",
+                      borderWidth: 1,
+                      borderColor: "rgba(16, 185, 129, 0.3)",
                     }}
                   >
-                    Google Account
-                  </Text>
-                </TouchableOpacity>
+                    <Ionicons
+                      name="logo-google"
+                      size={17}
+                      color="#34D399"
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text
+                      style={{
+                        color: "#D1FAE5",
+                        fontWeight: "600",
+                        fontSize: 12,
+                      }}
+                    >
+                      Google
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handleBiometricLogin}
+                    activeOpacity={0.8}
+                    disabled={isAuthenticating}
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingVertical: 11,
+                      paddingHorizontal: 10,
+                      borderRadius: 12,
+                      backgroundColor: "rgba(2, 24, 18, 0.9)",
+                      borderWidth: 1,
+                      borderColor: "rgba(16, 185, 129, 0.3)",
+                    }}
+                  >
+                    {isAuthenticating ? (
+                      <ActivityIndicator
+                        size="small"
+                        color="#34D399"
+                        style={{ marginRight: 6 }}
+                      />
+                    ) : (
+                      <Ionicons
+                        name={
+                          biometricType === "face"
+                            ? "scan-outline"
+                            : "finger-print-outline"
+                        }
+                        size={17}
+                        color="#34D399"
+                        style={{ marginRight: 6 }}
+                      />
+                    )}
+                    <Text
+                      style={{
+                        color: "#D1FAE5",
+                        fontWeight: "600",
+                        fontSize: 12,
+                      }}
+                    >
+                      {biometricType === "face" ? "Face ID" : "Biometrics"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </>
             )}
 

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   StyleSheet,
+  RefreshControl,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,7 +16,13 @@ import { Ionicons } from "@expo/vector-icons";
 import dashboardData from "../dummy/dashboard.json";
 import BottomBar from "../components/BottomBar";
 
-export default function DashboardScreen({ navigation }) {
+export default function DashboardScreen({
+  navigation,
+  hideBottomBar = false,
+  onNavigateToTransactions,
+}) {
+  const [refreshing, setRefreshing] = useState(false);
+
   const {
     monthlyOverview,
     todaySpend,
@@ -23,6 +30,13 @@ export default function DashboardScreen({ navigation }) {
     recentTransactions,
     user,
   } = dashboardData;
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1200);
+  }, []);
 
   return (
     <View className="flex-1 bg-[#EEF4F1]">
@@ -44,6 +58,14 @@ export default function DashboardScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         className="flex-1"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#10B981"
+            colors={["#10B981", "#059669"]}
+          />
+        }
       >
         {/* Top Header: 4-Dots Menu Button on Left, Profile Avatar on Right */}
         <View className="flex-row items-center justify-between px-5 pt-[52px] pb-4">
@@ -168,7 +190,7 @@ export default function DashboardScreen({ navigation }) {
                   style={styles.remainingBadge}
                 >
                   <Text className="text-white text-[13px] font-black">
-                    0{monthlyOverview.remainingPercentage}%
+                    {monthlyOverview.remainingPercentage}%
                   </Text>
                 </View>
               </View>
@@ -252,7 +274,16 @@ export default function DashboardScreen({ navigation }) {
             <Text className="text-[17px] font-black text-gray-900 tracking-tight">
               Recent Transactions
             </Text>
-            <TouchableOpacity activeOpacity={0.7}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                if (onNavigateToTransactions) {
+                  onNavigateToTransactions();
+                } else {
+                  navigation?.navigate("Transactions");
+                }
+              }}
+            >
               <Text className="text-[12px] font-semibold text-gray-400">
                 View All
               </Text>
@@ -301,10 +332,20 @@ export default function DashboardScreen({ navigation }) {
       </ScrollView>
 
       {/* Floating Bottom Navigation Bar */}
-      <BottomBar
-        activeTab="home"
-        onTabPress={(tab) => console.log("Tab selected:", tab)}
-      />
+      {!hideBottomBar && (
+        <BottomBar
+          activeTab="home"
+          onTabPress={(tab) => {
+            if (tab === "transactions") {
+              if (onNavigateToTransactions) {
+                onNavigateToTransactions();
+              } else {
+                navigation?.navigate("Transactions");
+              }
+            }
+          }}
+        />
+      )}
     </View>
   );
 }

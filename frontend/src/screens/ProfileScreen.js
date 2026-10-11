@@ -16,12 +16,14 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import dashboardData from "../dummy/dashboard.json";
+import { useAuth } from "../context/AuthContext";
 
 export default function ProfileScreen({ navigation }) {
+  const { user, logout } = useAuth();
+
   // User Profile State
-  const [name, setName] = useState(dashboardData.user?.name || "Alex Chen");
-  const [email, setEmail] = useState("alex.chen@expensewise.io");
+  const [name, setName] = useState(user?.username || "ExpenseWise User");
+  const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState("+91 98765 43210");
   const [isEditingInfo, setIsEditingInfo] = useState(false);
 
@@ -38,17 +40,36 @@ export default function ProfileScreen({ navigation }) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   useEffect(() => {
+    if (user?.username) {
+      setName(user.username);
+    }
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [user]);
+
+  useEffect(() => {
     (async () => {
       try {
         const val = await AsyncStorage.getItem("@expensewise_biometrics");
         if (val !== null) {
           setBiometricsEnabled(val === "true");
         }
+        if (!user) {
+          const lastUserRaw = await AsyncStorage.getItem(
+            "@expensewise_last_user",
+          );
+          if (lastUserRaw) {
+            const lastUser = JSON.parse(lastUserRaw);
+            if (lastUser?.username) setName(lastUser.username);
+            if (lastUser?.email) setEmail(lastUser.email);
+          }
+        }
       } catch (e) {
         console.warn("Error loading biometric preference:", e);
       }
     })();
-  }, []);
+  }, [user]);
 
   const handleToggleBiometrics = async (value) => {
     setBiometricsEnabled(value);
@@ -115,7 +136,8 @@ export default function ProfileScreen({ navigation }) {
       {
         text: "Log Out",
         style: "destructive",
-        onPress: () => {
+        onPress: async () => {
+          await logout();
           navigation?.reset({
             index: 0,
             routes: [{ name: "Login" }],
@@ -184,10 +206,13 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.profileCard}>
           {/* Avatar with Camera Badge */}
           <View style={styles.avatarWrapper}>
-            <Image
-              source={{ uri: dashboardData.user?.avatar }}
-              style={styles.avatarImage}
-            />
+            {user?.avatar ? (
+              <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
+            ) : (
+              <View style={[styles.avatarImage, styles.avatarFallback]}>
+                <Ionicons name="person" size={40} color="#0F4634" />
+              </View>
+            )}
             <TouchableOpacity
               activeOpacity={0.85}
               style={styles.avatarCameraBadge}
@@ -212,17 +237,6 @@ export default function ProfileScreen({ navigation }) {
           )}
 
           <Text style={styles.profileEmail}>{email}</Text>
-
-          {/* Pro Member Badge */}
-          <View style={styles.proBadge}>
-            <Ionicons
-              name="star"
-              size={13}
-              color="#FFFFFF"
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.proBadgeText}>PRO MEMBER</Text>
-          </View>
         </View>
 
         {/* Account Quick Stats Card */}
@@ -276,25 +290,6 @@ export default function ProfileScreen({ navigation }) {
                 />
               ) : (
                 <Text style={styles.infoValue}>{name}</Text>
-              )}
-            </View>
-          </View>
-
-          {/* Phone Field */}
-          <View style={styles.infoRow}>
-            <View style={styles.infoIconCircle}>
-              <Ionicons name="call-outline" size={18} color="#0F4634" />
-            </View>
-            <View style={styles.infoTextContainer}>
-              <Text style={styles.infoLabel}>Phone Number</Text>
-              {isEditingInfo ? (
-                <TextInput
-                  value={phone}
-                  onChangeText={setPhone}
-                  style={styles.infoInput}
-                />
-              ) : (
-                <Text style={styles.infoValue}>{phone}</Text>
               )}
             </View>
           </View>
@@ -588,6 +583,11 @@ const styles = StyleSheet.create({
     borderRadius: 45,
     borderWidth: 3,
     borderColor: "#10B981",
+  },
+  avatarFallback: {
+    backgroundColor: "#E6F4EE",
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarCameraBadge: {
     position: "absolute",

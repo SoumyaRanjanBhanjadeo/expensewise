@@ -16,17 +16,35 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import loginData from "../dummy/login.json";
+import { useAuth } from "../context/AuthContext";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
+import {
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
+  getToken,
+  getErrorMessage,
+} from "../services/auth";
 
-export default function LoginScreen({ navigation }) {
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+
+export default function LoginScreen({ navigation, route }) {
+  const { login, googleLogin, biometricLogin } = useAuth();
+
   // Step state: "login" | "forgot_email" | "forgot_otp" | "forgot_new_password"
   const [authStep, setAuthStep] = useState("login");
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Login states - default to dummy credentials for effortless testing
-  const [email, setEmail] = useState(loginData.user.email);
-  const [password, setPassword] = useState(loginData.user.password);
+  // Loading state for Google login
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // Login states
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
@@ -36,10 +54,44 @@ export default function LoginScreen({ navigation }) {
   const [biometricEnrolled, setBiometricEnrolled] = useState(false);
   const [biometricType, setBiometricType] = useState("fingerprint"); // "face" | "fingerprint"
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isBiometricsEnabled, setIsBiometricsEnabled] = useState(true);
 
+  // Read params passed from registration
+  useEffect(() => {
+    if (route?.params?.registeredEmail) {
+      setEmail(route.params.registeredEmail);
+    }
+    if (route?.params?.successMessage) {
+      setSuccessMessage(route.params.successMessage);
+      setErrorMessage("");
+    }
+  }, [route?.params]);
+
+  // Load biometrics preference and re-check whenever LoginScreen gains focus
   useEffect(() => {
     checkBiometrics();
-  }, []);
+    loadBiometricsPreference();
+
+    const unsubscribe = navigation?.addListener?.("focus", () => {
+      loadBiometricsPreference();
+      checkBiometrics();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const loadBiometricsPreference = async () => {
+    try {
+      const savedPref = await AsyncStorage.getItem("@expensewise_biometrics");
+      if (savedPref === "false") {
+        setIsBiometricsEnabled(false);
+      } else {
+        setIsBiometricsEnabled(true);
+      }
+    } catch (e) {
+      setIsBiometricsEnabled(true);
+    }
+  };
 
   const checkBiometrics = async () => {
     try {
@@ -73,7 +125,7 @@ export default function LoginScreen({ navigation }) {
     setIsAuthenticating(true);
 
     try {
-      // Check stored preference
+      // Check stored preference from Profile settings
       const savedPref = await AsyncStorage.getItem("@expensewise_biometrics");
       if (savedPref === "false") {
         Alert.alert(
@@ -102,8 +154,18 @@ export default function LoginScreen({ navigation }) {
             },
             {
               text: "Simulate Login",
-              onPress: () => {
+              onPress: async () => {
                 setSuccessMessage("Biometric verified! Signing in...");
+                try {
+                  const lastUserRaw = await AsyncStorage.getItem(
+                    "@expensewise_last_user",
+                  );
+                  const lastUser = lastUserRaw ? JSON.parse(lastUserRaw) : null;
+                  const targetEmail = email.trim() || lastUser?.email;
+                  await biometricLogin(targetEmail);
+                } catch (e) {
+                  console.warn("Biometric backend sign-in note:", e);
+                }
                 setTimeout(() => {
                   navigation?.replace("Dashboard");
                 }, 350);
@@ -128,6 +190,18 @@ export default function LoginScreen({ navigation }) {
 
       if (authResult.success) {
         setSuccessMessage("Biometric verified! Signing in...");
+
+        try {
+          const lastUserRaw = await AsyncStorage.getItem(
+            "@expensewise_last_user",
+          );
+          const lastUser = lastUserRaw ? JSON.parse(lastUserRaw) : null;
+          const targetEmail = email.trim() || lastUser?.email;
+          await biometricLogin(targetEmail);
+        } catch (e) {
+          console.warn("Biometric backend sign-in note:", e);
+        }
+
         setTimeout(() => {
           navigation?.replace("Dashboard");
         }, 300);
@@ -151,24 +225,122 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setErrorMessage("");
-    // Accept matching credentials or default login
-    if (
-      (email.trim().toLowerCase() === loginData.user.email.toLowerCase() &&
-        password === loginData.user.password) ||
-      (!email && !password)
-    ) {
+    setSuccessMessage("");
+
+    // Both fields are needed to reach the backend
+    if (!email.trim() || !password) {
+      setErrorMessage("Please enter your email and password.");
+      return;
+    }
+
+    try {
+      await login(email.trim().toLowerCase(), password);
       navigation?.replace("Dashboard");
-    } else {
+    } catch (error) {
       setErrorMessage(
-        `Invalid credentials. Demo: ${loginData.user.email} / ${loginData.user.password}`,
+        getErrorMessage(
+          error,
+          "We couldn't sign you in. Please check your email and password and try again.",
+        ),
       );
     }
   };
 
-  const handleGoogleLogin = () => {
-    navigation?.replace("Dashboard");
+  const handleGoogleLogin = async () => {
+    setErrorMessage("");
+    setSuccessMessage("");
+    setIsGoogleLoading(true);
+
+    try {
+      const redirectUri = Linking.createURL("oauthredirect");
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth` +
+        `?client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=token%20id_token` +
+        `&scope=${encodeURIComponent("openid email profile")}` +
+        `&prompt=select_account` +
+        `&nonce=${Math.random().toString(36).substring(2)}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        redirectUri,
+        { showInRecents: true }
+      );
+
+      if (result?.type === "success" && result.url) {
+        const rawParams = result.url.includes("#")
+          ? result.url.split("#")[1]
+          : result.url.split("?")[1] || "";
+
+        const params = {};
+        rawParams.split("&").forEach((item) => {
+          const [k, v] = item.split("=");
+          if (k && v) params[decodeURIComponent(k)] = decodeURIComponent(v);
+        });
+
+        const accessToken = params.access_token;
+        const idToken = params.id_token;
+
+        let profileData = null;
+
+        if (accessToken) {
+          try {
+            const res = await fetch(
+              "https://www.googleapis.com/oauth2/v3/userinfo",
+              {
+                headers: { Authorization: `Bearer ${accessToken}` },
+              }
+            );
+            if (res.ok) profileData = await res.json();
+          } catch (e) {
+            console.warn("Could not fetch userinfo via accessToken:", e);
+          }
+        }
+
+        if ((!profileData || !profileData.email) && idToken) {
+          try {
+            const res = await fetch(
+              `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+            );
+            if (res.ok) profileData = await res.json();
+          } catch (e) {
+            console.warn("Could not fetch profile via idToken:", e);
+          }
+        }
+
+        if (!profileData || !profileData.email) {
+          throw new Error("Unable to retrieve account details from Google.");
+        }
+
+        const cleanEmail = profileData.email.toLowerCase().trim();
+        const cleanUsername = profileData.name || cleanEmail.split("@")[0];
+        const avatar = profileData.picture || "";
+
+        await googleLogin({
+          email: cleanEmail,
+          username: cleanUsername,
+          avatar,
+          tokenId: idToken,
+        });
+
+        setSuccessMessage("Signed in with Google successfully!");
+        setTimeout(() => {
+          navigation?.replace("Dashboard");
+        }, 300);
+      }
+    } catch (error) {
+      setErrorMessage(
+        getErrorMessage(
+          error,
+          "Google sign-in could not be completed. Please try again."
+        )
+      );
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   // Forgot password states
@@ -220,36 +392,103 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
+    setErrorMessage("");
     setOtp(["", "", "", "", "", ""]);
-    setTimer(30);
     setCanResend(false);
     otpRefs.current[0]?.focus();
-    console.log("Resending OTP to:", forgotEmail);
+
+    try {
+      await forgotPassword(forgotEmail.trim().toLowerCase());
+      setTimer(30);
+    } catch (error) {
+      setErrorMessage(
+        getErrorMessage(
+          error,
+          "We couldn't resend the code. Please try again in a moment.",
+        ),
+      );
+    }
   };
 
-  const handleSendOtp = () => {
-    if (!forgotEmail) return;
-    setTimer(30);
-    setCanResend(false);
-    setAuthStep("forgot_otp");
+  const handleSendOtp = async () => {
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (!forgotEmail.trim()) {
+      setErrorMessage("Please enter your registered email.");
+      return;
+    }
+
+    try {
+      await forgotPassword(forgotEmail.trim().toLowerCase());
+      setTimer(30);
+      setCanResend(false);
+      setAuthStep("forgot_otp");
+    } catch (error) {
+      setErrorMessage(
+        getErrorMessage(
+          error,
+          "We couldn't send the code. Please try again in a moment.",
+        ),
+      );
+    }
   };
 
-  const handleVerifyOtp = () => {
+  const handleVerifyOtp = async () => {
+    setErrorMessage("");
     const enteredOtp = otp.join("");
-    if (enteredOtp.length < 6) return;
-    setAuthStep("forgot_new_password");
+
+    if (enteredOtp.length < 6) {
+      setErrorMessage("Please enter the full 6-digit code.");
+      return;
+    }
+
+    try {
+      await verifyOtp(forgotEmail.trim().toLowerCase(), enteredOtp);
+      setAuthStep("forgot_new_password");
+    } catch (error) {
+      setErrorMessage(
+        getErrorMessage(
+          error,
+          "That code doesn't look right. Please check it and try again.",
+        ),
+      );
+    }
   };
 
-  const handleResetPassword = () => {
-    if (!newPassword || newPassword !== confirmNewPassword) return;
-    setSuccessMessage("Password reset successfully! Please sign in.");
-    setAuthStep("login");
-    // Reset forgot password state
-    setForgotEmail("");
-    setOtp(["", "", "", "", "", ""]);
-    setNewPassword("");
-    setConfirmNewPassword("");
+  const handleResetPassword = async () => {
+    setErrorMessage("");
+
+    if (!newPassword || newPassword.length < 6) {
+      setErrorMessage("Password must be at least 6 characters long.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setErrorMessage("The two passwords do not match.");
+      return;
+    }
+
+    try {
+      await resetPassword({
+        email: forgotEmail.trim().toLowerCase(),
+        otp: otp.join(""),
+        password: newPassword,
+      });
+      setSuccessMessage("Password reset successfully! Please sign in.");
+      setAuthStep("login");
+      setForgotEmail("");
+      setOtp(["", "", "", "", "", ""]);
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (error) {
+      setErrorMessage(
+        getErrorMessage(
+          error,
+          "We couldn't update your password. Please try again in a moment.",
+        ),
+      );
+    }
   };
 
   return (
@@ -341,7 +580,7 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           {/* Success Banner if returned from reset */}
-          {successMessage && authStep === "login" && (
+          {successMessage && (
             <View className="mb-4 bg-emerald-500/15 border border-emerald-400/40 rounded-xl px-4 py-2.5 flex-row items-center">
               <Ionicons
                 name="checkmark-circle"
@@ -356,7 +595,7 @@ export default function LoginScreen({ navigation }) {
           )}
 
           {/* Error Banner */}
-          {errorMessage && authStep === "login" && (
+          {errorMessage && (
             <View className="mb-4 bg-red-500/15 border border-red-400/40 rounded-xl px-4 py-2.5 flex-row items-center">
               <Ionicons
                 name="alert-circle"
@@ -550,6 +789,7 @@ export default function LoginScreen({ navigation }) {
                 >
                   <TouchableOpacity
                     onPress={handleGoogleLogin}
+                    disabled={isGoogleLoading || isAuthenticating}
                     activeOpacity={0.8}
                     style={{
                       flex: 1,
@@ -564,41 +804,7 @@ export default function LoginScreen({ navigation }) {
                       borderColor: "rgba(16, 185, 129, 0.3)",
                     }}
                   >
-                    <Ionicons
-                      name="logo-google"
-                      size={17}
-                      color="#34D399"
-                      style={{ marginRight: 6 }}
-                    />
-                    <Text
-                      style={{
-                        color: "#D1FAE5",
-                        fontWeight: "600",
-                        fontSize: 12,
-                      }}
-                    >
-                      Google
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={handleBiometricLogin}
-                    activeOpacity={0.8}
-                    disabled={isAuthenticating}
-                    style={{
-                      flex: 1,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      paddingVertical: 11,
-                      paddingHorizontal: 10,
-                      borderRadius: 12,
-                      backgroundColor: "rgba(2, 24, 18, 0.9)",
-                      borderWidth: 1,
-                      borderColor: "rgba(16, 185, 129, 0.3)",
-                    }}
-                  >
-                    {isAuthenticating ? (
+                    {isGoogleLoading ? (
                       <ActivityIndicator
                         size="small"
                         color="#34D399"
@@ -606,11 +812,7 @@ export default function LoginScreen({ navigation }) {
                       />
                     ) : (
                       <Ionicons
-                        name={
-                          biometricType === "face"
-                            ? "scan-outline"
-                            : "finger-print-outline"
-                        }
+                        name="logo-google"
                         size={17}
                         color="#34D399"
                         style={{ marginRight: 6 }}
@@ -623,9 +825,57 @@ export default function LoginScreen({ navigation }) {
                         fontSize: 12,
                       }}
                     >
-                      {biometricType === "face" ? "Face ID" : "Biometrics"}
+                      {isGoogleLoading ? "Signing in..." : "Google"}
                     </Text>
                   </TouchableOpacity>
+
+                  {isBiometricsEnabled && (
+                    <TouchableOpacity
+                      onPress={handleBiometricLogin}
+                      activeOpacity={0.8}
+                      disabled={isAuthenticating}
+                      style={{
+                        flex: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingVertical: 11,
+                        paddingHorizontal: 10,
+                        borderRadius: 12,
+                        backgroundColor: "rgba(2, 24, 18, 0.9)",
+                        borderWidth: 1,
+                        borderColor: "rgba(16, 185, 129, 0.3)",
+                      }}
+                    >
+                      {isAuthenticating ? (
+                        <ActivityIndicator
+                          size="small"
+                          color="#34D399"
+                          style={{ marginRight: 6 }}
+                        />
+                      ) : (
+                        <Ionicons
+                          name={
+                            biometricType === "face"
+                              ? "scan-outline"
+                              : "finger-print-outline"
+                          }
+                          size={17}
+                          color="#34D399"
+                          style={{ marginRight: 6 }}
+                        />
+                      )}
+                      <Text
+                        style={{
+                          color: "#D1FAE5",
+                          fontWeight: "600",
+                          fontSize: 12,
+                        }}
+                      >
+                        {biometricType === "face" ? "Face ID" : "Biometrics"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </>
             )}

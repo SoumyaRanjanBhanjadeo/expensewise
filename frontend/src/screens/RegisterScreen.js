@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,15 +9,28 @@ import {
   ScrollView,
   StatusBar,
   Image,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
+import { useAuth } from "../context/AuthContext";
+import { getErrorMessage } from "../services/auth";
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
 export default function RegisterScreen({ navigation }) {
+  const { register, googleLogin } = useAuth();
+
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -27,17 +40,131 @@ export default function RegisterScreen({ navigation }) {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
 
-  const handleRegister = () => {
-    console.log("Register submitted:", {
-      username,
-      email,
-      password,
-      confirmPassword,
-    });
+  const handleRegister = async () => {
+    setErrorMessage("");
+
+    // Basic checks before calling the backend
+    if (!username.trim() || !email.trim() || !password) {
+      setErrorMessage("Please fill in username, email and password.");
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMessage("Password must be at least 6 characters long.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMessage("The two passwords do not match.");
+      return;
+    }
+
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      await register(username.trim(), cleanEmail, password);
+      navigation?.navigate("Login", {
+        registeredEmail: cleanEmail,
+        successMessage: "Account created successfully! Please sign in.",
+      });
+    } catch (error) {
+      setErrorMessage(
+        getErrorMessage(
+          error,
+          "We couldn't create your account right now. Please try again in a moment.",
+        ),
+      );
+    }
   };
 
-  const handleGoogleSignup = () => {
-    console.log("Google Signup clicked");
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const handleGoogleSignup = async () => {
+    setErrorMessage("");
+    setIsGoogleLoading(true);
+
+    try {
+      const redirectUri = Linking.createURL("oauthredirect");
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth` +
+        `?client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=token%20id_token` +
+        `&scope=${encodeURIComponent("openid email profile")}` +
+        `&prompt=select_account` +
+        `&nonce=${Math.random().toString(36).substring(2)}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        redirectUri,
+        { showInRecents: true }
+      );
+
+      if (result?.type === "success" && result.url) {
+        const rawParams = result.url.includes("#")
+          ? result.url.split("#")[1]
+          : result.url.split("?")[1] || "";
+
+        const params = {};
+        rawParams.split("&").forEach((item) => {
+          const [k, v] = item.split("=");
+          if (k && v) params[decodeURIComponent(k)] = decodeURIComponent(v);
+        });
+
+        const accessToken = params.access_token;
+        const idToken = params.id_token;
+
+        let profileData = null;
+
+        if (accessToken) {
+          try {
+            const res = await fetch(
+              "https://www.googleapis.com/oauth2/v3/userinfo",
+              {
+                headers: { Authorization: `Bearer ${accessToken}` },
+              }
+            );
+            if (res.ok) profileData = await res.json();
+          } catch (e) {
+            console.warn("Could not fetch userinfo via accessToken:", e);
+          }
+        }
+
+        if ((!profileData || !profileData.email) && idToken) {
+          try {
+            const res = await fetch(
+              `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+            );
+            if (res.ok) profileData = await res.json();
+          } catch (e) {
+            console.warn("Could not fetch profile via idToken:", e);
+          }
+        }
+
+        if (!profileData || !profileData.email) {
+          throw new Error("Unable to retrieve account details from Google.");
+        }
+
+        const cleanEmail = profileData.email.toLowerCase().trim();
+        const cleanUsername = profileData.name || cleanEmail.split("@")[0];
+        const avatar = profileData.picture || "";
+
+        await googleLogin({
+          email: cleanEmail,
+          username: cleanUsername,
+          avatar,
+          tokenId: idToken,
+        });
+
+        navigation?.replace("Dashboard");
+      }
+    } catch (error) {
+      setErrorMessage(
+        getErrorMessage(
+          error,
+          "Google sign-up could not be completed. Please try again."
+        )
+      );
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   return (
@@ -100,6 +227,21 @@ export default function RegisterScreen({ navigation }) {
               Start mastering your money with ExpenseWise
             </Text>
           </View>
+
+          {/* Error Banner */}
+          {errorMessage && (
+            <View className="w-full mb-4 bg-red-500/15 border border-red-400/40 rounded-xl px-4 py-2.5 flex-row items-center">
+              <Ionicons
+                name="alert-circle"
+                size={18}
+                color="#F87171"
+                style={{ marginRight: 8 }}
+              />
+              <Text className="text-red-300 text-xs font-medium flex-1">
+                {errorMessage}
+              </Text>
+            </View>
+          )}
 
           {/* Form Card */}
           <View className="w-full bg-[#04281E]/70 border border-emerald-500/20 rounded-2xl p-5 shadow-xl">
@@ -311,6 +453,7 @@ export default function RegisterScreen({ navigation }) {
             {/* Google Signup */}
             <TouchableOpacity
               onPress={handleGoogleSignup}
+              disabled={isGoogleLoading}
               activeOpacity={0.8}
               style={{
                 flexDirection: "row",
@@ -324,12 +467,20 @@ export default function RegisterScreen({ navigation }) {
                 borderColor: "rgba(16, 185, 129, 0.3)",
               }}
             >
-              <Ionicons
-                name="logo-google"
-                size={18}
-                color="#34D399"
-                style={{ marginRight: 8 }}
-              />
+              {isGoogleLoading ? (
+                <ActivityIndicator
+                  size="small"
+                  color="#34D399"
+                  style={{ marginRight: 8 }}
+                />
+              ) : (
+                <Ionicons
+                  name="logo-google"
+                  size={18}
+                  color="#34D399"
+                  style={{ marginRight: 8 }}
+                />
+              )}
               <Text
                 style={{
                   color: "#D1FAE5",
@@ -337,7 +488,7 @@ export default function RegisterScreen({ navigation }) {
                   fontSize: 13,
                 }}
               >
-                Google Account
+                {isGoogleLoading ? "Connecting to Google..." : "Google Account"}
               </Text>
             </TouchableOpacity>
           </View>

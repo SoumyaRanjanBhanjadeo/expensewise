@@ -15,12 +15,14 @@ import { Ionicons } from "@expo/vector-icons";
 // Dummy data
 import dashboardData from "../dummy/dashboard.json";
 import BottomBar from "../components/BottomBar";
+import { useAuth } from "../context/AuthContext";
 
 export default function DashboardScreen({
   navigation,
   hideBottomBar = false,
   onNavigateToTransactions,
 }) {
+  const { user: authUser } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
   const {
@@ -30,6 +32,16 @@ export default function DashboardScreen({
     recentTransactions,
     user,
   } = dashboardData;
+
+  const getInitials = (name) => {
+    if (!name) return "EW";
+    const clean = name.trim();
+    const parts = clean.split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return clean.slice(0, 2).toUpperCase();
+  };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -86,13 +98,19 @@ export default function DashboardScreen({
           <TouchableOpacity
             onPress={() => navigation?.navigate("Profile")}
             activeOpacity={0.8}
-            className="w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm elevation-3"
+            className="w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm elevation-3 items-center justify-center bg-[#0F4634]"
           >
-            <Image
-              source={{ uri: user.avatar }}
-              className="w-full h-full"
-              resizeMode="cover"
-            />
+            {authUser?.avatar ? (
+              <Image
+                source={{ uri: authUser.avatar }}
+                className="w-full h-full"
+                resizeMode="cover"
+              />
+            ) : (
+              <Text className="text-white font-bold text-sm tracking-wider">
+                {getInitials(authUser?.username || authUser?.name || "")}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -238,27 +256,6 @@ export default function DashboardScreen({
               </Text>
             </View>
           </LinearGradient>
-        </View>
-
-        {/* Quick Action Buttons Row */}
-        <View className="flex-row justify-between px-5 mb-5">
-          {quickActions.map((action) => (
-            <TouchableOpacity
-              key={action.id}
-              activeOpacity={0.8}
-              className="flex-1 bg-white rounded-[18px] py-[18px] items-center justify-center mx-1 shadow-sm elevation-2"
-            >
-              <Ionicons
-                name={action.icon}
-                size={22}
-                color="#000000"
-                style={styles.actionIcon}
-              />
-              <Text className="text-[12px] font-bold text-gray-800">
-                {action.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
         </View>
 
         {/* Recent Transactions Bottom Sheet Card (Extends down with no gaps) */}

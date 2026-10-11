@@ -7,8 +7,11 @@ import {
   StatusBar,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useAuth } from "../context/AuthContext";
 
 export default function SplashScreen({ navigation, onFinish }) {
+  const { user, isLoading } = useAuth();
+
   // Animation values
   const logoScale = useRef(new Animated.Value(0.75)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -19,6 +22,19 @@ export default function SplashScreen({ navigation, onFinish }) {
 
   // Percentage number state
   const [percent, setPercent] = useState(0);
+  // Becomes true once the loading animation has finished
+  const [animationDone, setAnimationDone] = useState(false);
+
+  // Moves to the next screen only after the animation and session check finish
+  useEffect(() => {
+    if (!animationDone || isLoading) return;
+
+    if (navigation && navigation.replace) {
+      navigation.replace(user ? "Dashboard" : "Login");
+    } else if (onFinish) {
+      onFinish();
+    }
+  }, [animationDone, isLoading, user, navigation, onFinish]);
 
   useEffect(() => {
     // Listen to progress bar animation to display live percentage
@@ -74,19 +90,13 @@ export default function SplashScreen({ navigation, onFinish }) {
       ])
     ).start();
 
-    // 3. Progress bar fill & auto navigate to Login
+    // 3. Progress bar fill & mark the splash as ready
     Animated.timing(progressBar, {
       toValue: 1,
       duration: 2600,
       useNativeDriver: false,
     }).start(() => {
-      setTimeout(() => {
-        if (navigation && navigation.replace) {
-          navigation.replace("Login");
-        } else if (onFinish) {
-          onFinish();
-        }
-      }, 300);
+      setTimeout(() => setAnimationDone(true), 300);
     });
 
     return () => {

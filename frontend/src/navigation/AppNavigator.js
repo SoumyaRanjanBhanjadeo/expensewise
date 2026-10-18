@@ -8,6 +8,7 @@ import RegisterScreen from "../screens/RegisterScreen";
 import MainScreen from "../screens/MainScreen";
 import RecieptModalScreen from "../screens/RecieptModalScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import CategoryDetailScreen from "../screens/CategoryDetailScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -73,6 +74,11 @@ export default function AppNavigator() {
           name="RecieptModalScreen"
           component={RecieptModalScreen}
           options={{ animation: "slide_from_bottom" }}
+        />
+        <Stack.Screen
+          name="CategoryDetail"
+          component={CategoryDetailScreen}
+          options={{ animation: "slide_from_right" }}
         />
         <Stack.Screen
           name="Profile"

@@ -39,8 +39,9 @@ export default function LoginScreen({ navigation, route }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Loading state for Google login
+  // Loading state for Google login and normal login
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Login states
   const [email, setEmail] = useState("");
@@ -66,6 +67,26 @@ export default function LoginScreen({ navigation, route }) {
       setErrorMessage("");
     }
   }, [route?.params]);
+
+  // Automatically clear error messages after 3 seconds
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
+
+  // Automatically clear success messages after 4 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage("");
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   // Load biometrics preference and re-check whenever LoginScreen gains focus
   useEffect(() => {
@@ -235,6 +256,7 @@ export default function LoginScreen({ navigation, route }) {
       return;
     }
 
+    setIsLoggingIn(true);
     try {
       await login(email.trim().toLowerCase(), password);
       navigation?.replace("Dashboard");
@@ -242,9 +264,11 @@ export default function LoginScreen({ navigation, route }) {
       setErrorMessage(
         getErrorMessage(
           error,
-          "We couldn't sign you in. Please check your email and password and try again.",
+          "Wrong credentials. Please check your email and password and try again.",
         ),
       );
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -267,7 +291,7 @@ export default function LoginScreen({ navigation, route }) {
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
         redirectUri,
-        { showInRecents: true }
+        { showInRecents: true },
       );
 
       if (result?.type === "success" && result.url) {
@@ -292,7 +316,7 @@ export default function LoginScreen({ navigation, route }) {
               "https://www.googleapis.com/oauth2/v3/userinfo",
               {
                 headers: { Authorization: `Bearer ${accessToken}` },
-              }
+              },
             );
             if (res.ok) profileData = await res.json();
           } catch (e) {
@@ -303,7 +327,7 @@ export default function LoginScreen({ navigation, route }) {
         if ((!profileData || !profileData.email) && idToken) {
           try {
             const res = await fetch(
-              `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+              `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
             );
             if (res.ok) profileData = await res.json();
           } catch (e) {
@@ -335,8 +359,8 @@ export default function LoginScreen({ navigation, route }) {
       setErrorMessage(
         getErrorMessage(
           error,
-          "Google sign-in could not be completed. Please try again."
-        )
+          "Google sign-in could not be completed. Please try again.",
+        ),
       );
     } finally {
       setIsGoogleLoading(false);
@@ -361,6 +385,11 @@ export default function LoginScreen({ navigation, route }) {
   const [newPasswordFocused, setNewPasswordFocused] = useState(false);
   const [confirmNewPasswordFocused, setConfirmNewPasswordFocused] =
     useState(false);
+
+  // Loading states for forgot password flow
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Countdown timer for OTP
   useEffect(() => {
@@ -397,17 +426,34 @@ export default function LoginScreen({ navigation, route }) {
     setOtp(["", "", "", "", "", ""]);
     setCanResend(false);
     otpRefs.current[0]?.focus();
+    setIsSendingOtp(true);
 
     try {
       await forgotPassword(forgotEmail.trim().toLowerCase());
       setTimer(30);
     } catch (error) {
-      setErrorMessage(
-        getErrorMessage(
-          error,
-          "We couldn't resend the code. Please try again in a moment.",
-        ),
-      );
+      const status = error.response?.status;
+      const serverMessage = error.response?.data?.message;
+
+      if (
+        status === 404 ||
+        serverMessage?.toLowerCase()?.includes("no account") ||
+        serverMessage?.toLowerCase()?.includes("not found")
+      ) {
+        setErrorMessage(
+          serverMessage ||
+            "There is no account registered with this email address.",
+        );
+      } else {
+        setErrorMessage(
+          getErrorMessage(
+            error,
+            "Failed to resend verification code. Please try again.",
+          ),
+        );
+      }
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
@@ -415,23 +461,47 @@ export default function LoginScreen({ navigation, route }) {
     setErrorMessage("");
     setSuccessMessage("");
 
-    if (!forgotEmail.trim()) {
+    const cleanEmail = forgotEmail.trim().toLowerCase();
+    if (!cleanEmail) {
       setErrorMessage("Please enter your registered email.");
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorMessage("Please enter a valid email address.");
+      return;
+    }
+
+    setIsSendingOtp(true);
     try {
-      await forgotPassword(forgotEmail.trim().toLowerCase());
+      await forgotPassword(cleanEmail);
       setTimer(30);
       setCanResend(false);
       setAuthStep("forgot_otp");
     } catch (error) {
-      setErrorMessage(
-        getErrorMessage(
-          error,
-          "We couldn't send the code. Please try again in a moment.",
-        ),
-      );
+      const status = error.response?.status;
+      const serverMessage = error.response?.data?.message;
+
+      if (
+        status === 404 ||
+        serverMessage?.toLowerCase()?.includes("no account") ||
+        serverMessage?.toLowerCase()?.includes("not found")
+      ) {
+        setErrorMessage(
+          serverMessage ||
+            "There is no account registered with this email address.",
+        );
+      } else {
+        setErrorMessage(
+          getErrorMessage(
+            error,
+            "Failed to send verification code. Please try again.",
+          ),
+        );
+      }
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
@@ -444,6 +514,7 @@ export default function LoginScreen({ navigation, route }) {
       return;
     }
 
+    setIsVerifyingOtp(true);
     try {
       await verifyOtp(forgotEmail.trim().toLowerCase(), enteredOtp);
       setAuthStep("forgot_new_password");
@@ -454,6 +525,8 @@ export default function LoginScreen({ navigation, route }) {
           "That code doesn't look right. Please check it and try again.",
         ),
       );
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -469,6 +542,7 @@ export default function LoginScreen({ navigation, route }) {
       return;
     }
 
+    setIsResettingPassword(true);
     try {
       await resetPassword({
         email: forgotEmail.trim().toLowerCase(),
@@ -485,31 +559,26 @@ export default function LoginScreen({ navigation, route }) {
       setErrorMessage(
         getErrorMessage(
           error,
-          "We couldn't update your password. Please try again in a moment.",
+          "Can't update your password. Please try again in a moment.",
         ),
       );
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
   return (
-    <View className="flex-1 bg-[#021812] relative">
+    <View className="flex-1 bg-[#F4F9F6] relative">
       <StatusBar
-        barStyle="light-content"
+        barStyle="dark-content"
         translucent
         backgroundColor="transparent"
       />
 
-      {/* Atmospheric Background Gradients */}
-      <LinearGradient
-        colors={["#03261C", "#021A13", "#010F0B"]}
-        className="absolute inset-0"
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      />
-
-      {/* Ambient background glows */}
-      <View className="absolute -top-20 -left-16 w-64 h-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-      <View className="absolute top-1/2 -right-24 w-72 h-72 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
+      {/* Subtle ambient light glows */}
+      <View className="absolute -top-32 -left-20 w-80 h-80 rounded-full bg-emerald-200/30 blur-3xl pointer-events-none" />
+      <View className="absolute top-1/2 -right-24 w-80 h-80 rounded-full bg-teal-200/25 blur-3xl pointer-events-none" />
+      <View className="absolute -bottom-20 left-10 w-72 h-72 rounded-full bg-emerald-100/40 blur-3xl pointer-events-none" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -533,10 +602,10 @@ export default function LoginScreen({ navigation, route }) {
 
             {authStep === "login" && (
               <>
-                <Text className="text-2xl font-bold text-white tracking-tight">
-                  Welcome Back
+                <Text className="text-[26px] font-bold text-[#0F4634] tracking-tight">
+                  Welcome
                 </Text>
-                <Text className="text-emerald-100/60 text-xs mt-1 text-center">
+                <Text className="text-[#52796F] text-[13px] mt-1 text-center font-medium">
                   Sign in to keep tracking your financial journey
                 </Text>
               </>
@@ -544,10 +613,10 @@ export default function LoginScreen({ navigation, route }) {
 
             {authStep === "forgot_email" && (
               <>
-                <Text className="text-2xl font-bold text-white tracking-tight">
+                <Text className="text-[26px] font-bold text-[#0F4634] tracking-tight">
                   Reset Password
                 </Text>
-                <Text className="text-emerald-100/60 text-xs mt-1 text-center">
+                <Text className="text-[#52796F] text-[13px] mt-1 text-center font-medium">
                   Enter your registered email to receive a recovery code
                 </Text>
               </>
@@ -555,12 +624,12 @@ export default function LoginScreen({ navigation, route }) {
 
             {authStep === "forgot_otp" && (
               <>
-                <Text className="text-2xl font-bold text-white tracking-tight">
+                <Text className="text-[26px] font-bold text-[#0F4634] tracking-tight">
                   Verify OTP
                 </Text>
-                <Text className="text-emerald-100/60 text-xs mt-1 text-center">
+                <Text className="text-[#52796F] text-[13px] mt-1 text-center font-medium">
                   Enter the 6-digit code sent to{" "}
-                  <Text className="text-emerald-400 font-semibold">
+                  <Text className="text-[#059669] font-bold">
                     {forgotEmail || "your email"}
                   </Text>
                 </Text>
@@ -569,10 +638,10 @@ export default function LoginScreen({ navigation, route }) {
 
             {authStep === "forgot_new_password" && (
               <>
-                <Text className="text-2xl font-bold text-white tracking-tight">
+                <Text className="text-[26px] font-bold text-[#0F4634] tracking-tight">
                   Create New Password
                 </Text>
-                <Text className="text-emerald-100/60 text-xs mt-1 text-center">
+                <Text className="text-[#52796F] text-[13px] mt-1 text-center font-medium">
                   Your new password must be different from previous ones
                 </Text>
               </>
@@ -581,14 +650,14 @@ export default function LoginScreen({ navigation, route }) {
 
           {/* Success Banner if returned from reset */}
           {successMessage && (
-            <View className="mb-4 bg-emerald-500/15 border border-emerald-400/40 rounded-xl px-4 py-2.5 flex-row items-center">
+            <View className="mb-4 bg-[#E8F8F2] border border-[#A7E8D0] rounded-2xl px-4 py-3 flex-row items-center shadow-xs">
               <Ionicons
                 name="checkmark-circle"
                 size={18}
-                color="#34D399"
+                color="#059669"
                 style={{ marginRight: 8 }}
               />
-              <Text className="text-emerald-300 text-xs font-medium flex-1">
+              <Text className="text-[#065F46] text-xs font-semibold flex-1">
                 {successMessage}
               </Text>
             </View>
@@ -596,21 +665,21 @@ export default function LoginScreen({ navigation, route }) {
 
           {/* Error Banner */}
           {errorMessage && (
-            <View className="mb-4 bg-red-500/15 border border-red-400/40 rounded-xl px-4 py-2.5 flex-row items-center">
+            <View className="mb-4 bg-[#FEF2F2] border border-[#FECACA] rounded-2xl px-4 py-3 flex-row items-center shadow-xs">
               <Ionicons
                 name="alert-circle"
                 size={18}
-                color="#F87171"
+                color="#DC2626"
                 style={{ marginRight: 8 }}
               />
-              <Text className="text-red-300 text-xs font-medium flex-1">
+              <Text className="text-[#991B1B] text-xs font-semibold flex-1">
                 {errorMessage}
               </Text>
             </View>
           )}
 
           {/* Form Card */}
-          <View className="w-full bg-[#04281E]/70 border border-emerald-500/20 rounded-2xl p-5 shadow-xl">
+          <View className="w-full bg-white border border-[#E3EDE7] rounded-3xl p-6 shadow-md shadow-emerald-950/5">
             {/* Top Back Button for Forgot Password Steps */}
             {authStep !== "login" && (
               <TouchableOpacity
@@ -621,15 +690,15 @@ export default function LoginScreen({ navigation, route }) {
                     setAuthStep("forgot_otp");
                 }}
                 activeOpacity={0.7}
-                className="flex-row items-center mb-3.5 self-start"
+                className="flex-row items-center mb-4 self-start bg-[#EEF5F1] px-3.5 py-1.5 rounded-full"
               >
                 <Ionicons
                   name="arrow-back"
-                  size={16}
-                  color="#34D399"
+                  size={15}
+                  color="#0F4634"
                   style={{ marginRight: 4 }}
                 />
-                <Text className="text-emerald-400 text-xs font-semibold">
+                <Text className="text-[#0F4634] text-xs font-bold">
                   {authStep === "forgot_email"
                     ? "Back to Login"
                     : "Previous Step"}
@@ -641,22 +710,21 @@ export default function LoginScreen({ navigation, route }) {
             {authStep === "login" && (
               <>
                 {/* Email Field */}
-                <View className="mb-3">
-                  <Text className="text-emerald-200/80 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+                <View className="mb-3.5">
+                  <Text className="text-[#1F382C] text-[11px] font-bold uppercase tracking-wider mb-1.5">
                     Email Address
                   </Text>
                   <View
                     style={{
-                      borderColor: emailFocused
-                        ? "#34D399"
-                        : "rgba(16, 185, 129, 0.25)",
+                      borderColor: emailFocused ? "#10B981" : "#DCE7E1",
+                      backgroundColor: emailFocused ? "#FFFFFF" : "#F8FAF9",
                     }}
-                    className="flex-row items-center bg-[#021812]/80 border rounded-xl px-3.5 py-2.5"
+                    className="flex-row items-center border rounded-2xl px-3.5 py-2.5"
                   >
                     <Ionicons
                       name="mail-outline"
                       size={18}
-                      color={emailFocused ? "#34D399" : "#6EE7B7"}
+                      color={emailFocused ? "#10B981" : "#52796F"}
                       style={{ marginRight: 8 }}
                     />
                     <TextInput
@@ -665,32 +733,31 @@ export default function LoginScreen({ navigation, route }) {
                       onFocus={() => setEmailFocused(true)}
                       onBlur={() => setEmailFocused(false)}
                       placeholder="name@example.com"
-                      placeholderTextColor="rgba(110, 231, 183, 0.4)"
+                      placeholderTextColor="#8FA89B"
                       keyboardType="email-address"
                       autoCapitalize="none"
                       style={{ paddingVertical: 0 }}
-                      className="flex-1 text-white text-sm font-medium"
+                      className="flex-1 text-[#0F4634] text-sm font-medium"
                     />
                   </View>
                 </View>
 
                 {/* Password Field */}
                 <View className="mb-2">
-                  <Text className="text-emerald-200/80 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+                  <Text className="text-[#1F382C] text-[11px] font-bold uppercase tracking-wider mb-1.5">
                     Password
                   </Text>
                   <View
                     style={{
-                      borderColor: passwordFocused
-                        ? "#34D399"
-                        : "rgba(16, 185, 129, 0.25)",
+                      borderColor: passwordFocused ? "#10B981" : "#DCE7E1",
+                      backgroundColor: passwordFocused ? "#FFFFFF" : "#F8FAF9",
                     }}
-                    className="flex-row items-center bg-[#021812]/80 border rounded-xl px-3.5 py-2.5"
+                    className="flex-row items-center border rounded-2xl px-3.5 py-2.5"
                   >
                     <Ionicons
                       name="lock-closed-outline"
                       size={18}
-                      color={passwordFocused ? "#34D399" : "#6EE7B7"}
+                      color={passwordFocused ? "#10B981" : "#52796F"}
                       style={{ marginRight: 8 }}
                     />
                     <TextInput
@@ -699,11 +766,11 @@ export default function LoginScreen({ navigation, route }) {
                       onFocus={() => setPasswordFocused(true)}
                       onBlur={() => setPasswordFocused(false)}
                       placeholder="••••••••"
-                      placeholderTextColor="rgba(110, 231, 183, 0.4)"
+                      placeholderTextColor="#8FA89B"
                       secureTextEntry={!showPassword}
                       autoCapitalize="none"
                       style={{ paddingVertical: 0 }}
-                      className="flex-1 text-white text-sm font-medium"
+                      className="flex-1 text-[#0F4634] text-sm font-medium"
                     />
                     <TouchableOpacity
                       onPress={() => setShowPassword(!showPassword)}
@@ -713,7 +780,7 @@ export default function LoginScreen({ navigation, route }) {
                       <Ionicons
                         name={showPassword ? "eye-off-outline" : "eye-outline"}
                         size={18}
-                        color="rgba(110, 231, 183, 0.7)"
+                        color="#52796F"
                       />
                     </TouchableOpacity>
                   </View>
@@ -729,7 +796,7 @@ export default function LoginScreen({ navigation, route }) {
                   activeOpacity={0.7}
                   className="self-end mb-4"
                 >
-                  <Text className="text-emerald-400 text-xs font-semibold">
+                  <Text className="text-[#059669] text-xs font-bold">
                     Forgot Password?
                   </Text>
                 </TouchableOpacity>
@@ -737,46 +804,52 @@ export default function LoginScreen({ navigation, route }) {
                 {/* Sign In Button */}
                 <TouchableOpacity
                   onPress={handleLogin}
+                  disabled={isLoggingIn}
                   activeOpacity={0.85}
                   style={{
-                    borderRadius: 12,
+                    borderRadius: 14,
                     overflow: "hidden",
                     marginBottom: 16,
+                    opacity: isLoggingIn ? 0.7 : 1,
                   }}
                 >
                   <LinearGradient
-                    colors={["#10B981", "#059669"]}
+                    colors={["#0F4634", "#155E47"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
                       justifyContent: "center",
-                      paddingVertical: 12,
+                      paddingVertical: 13,
                       paddingHorizontal: 16,
-                      borderRadius: 12,
+                      borderRadius: 14,
                     }}
                   >
-                    <Text
-                      style={{
-                        color: "#011B13",
-                        fontWeight: "700",
-                        fontSize: 14,
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Sign In
-                    </Text>
+                    {isLoggingIn ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text
+                        style={{
+                          color: "#FFFFFF",
+                          fontWeight: "700",
+                          fontSize: 15,
+                          letterSpacing: 0.3,
+                        }}
+                      >
+                        Sign In
+                      </Text>
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
 
                 {/* Divider */}
                 <View className="flex-row items-center mb-4">
-                  <View className="flex-1 h-[1px] bg-emerald-500/20" />
-                  <Text className="text-emerald-200/50 text-[10px] font-medium px-2.5 uppercase tracking-wider">
+                  <View className="flex-1 h-[1px] bg-[#E3EDE7]" />
+                  <Text className="text-[#7A998B] text-[10px] font-bold px-2.5 uppercase tracking-wider">
                     Or continue with
                   </Text>
-                  <View className="flex-1 h-[1px] bg-emerald-500/20" />
+                  <View className="flex-1 h-[1px] bg-[#E3EDE7]" />
                 </View>
 
                 {/* Alternative Logins: Google & Biometric Option */}
@@ -798,31 +871,31 @@ export default function LoginScreen({ navigation, route }) {
                       justifyContent: "center",
                       paddingVertical: 11,
                       paddingHorizontal: 10,
-                      borderRadius: 12,
-                      backgroundColor: "rgba(2, 24, 18, 0.9)",
+                      borderRadius: 14,
+                      backgroundColor: "#F8FAF9",
                       borderWidth: 1,
-                      borderColor: "rgba(16, 185, 129, 0.3)",
+                      borderColor: "#DCE7E1",
                     }}
                   >
                     {isGoogleLoading ? (
                       <ActivityIndicator
                         size="small"
-                        color="#34D399"
+                        color="#0F4634"
                         style={{ marginRight: 6 }}
                       />
                     ) : (
                       <Ionicons
                         name="logo-google"
                         size={17}
-                        color="#34D399"
+                        color="#0F4634"
                         style={{ marginRight: 6 }}
                       />
                     )}
                     <Text
                       style={{
-                        color: "#D1FAE5",
-                        fontWeight: "600",
-                        fontSize: 12,
+                        color: "#0F4634",
+                        fontWeight: "700",
+                        fontSize: 13,
                       }}
                     >
                       {isGoogleLoading ? "Signing in..." : "Google"}
@@ -841,16 +914,16 @@ export default function LoginScreen({ navigation, route }) {
                         justifyContent: "center",
                         paddingVertical: 11,
                         paddingHorizontal: 10,
-                        borderRadius: 12,
-                        backgroundColor: "rgba(2, 24, 18, 0.9)",
+                        borderRadius: 14,
+                        backgroundColor: "#F8FAF9",
                         borderWidth: 1,
-                        borderColor: "rgba(16, 185, 129, 0.3)",
+                        borderColor: "#DCE7E1",
                       }}
                     >
                       {isAuthenticating ? (
                         <ActivityIndicator
                           size="small"
-                          color="#34D399"
+                          color="#0F4634"
                           style={{ marginRight: 6 }}
                         />
                       ) : (
@@ -861,15 +934,15 @@ export default function LoginScreen({ navigation, route }) {
                               : "finger-print-outline"
                           }
                           size={17}
-                          color="#34D399"
+                          color="#0F4634"
                           style={{ marginRight: 6 }}
                         />
                       )}
                       <Text
                         style={{
-                          color: "#D1FAE5",
-                          fontWeight: "600",
-                          fontSize: 12,
+                          color: "#0F4634",
+                          fontWeight: "700",
+                          fontSize: 13,
                         }}
                       >
                         {biometricType === "face" ? "Face ID" : "Biometrics"}
@@ -884,21 +957,22 @@ export default function LoginScreen({ navigation, route }) {
             {authStep === "forgot_email" && (
               <>
                 <View className="mb-4">
-                  <Text className="text-emerald-200/80 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+                  <Text className="text-[#1F382C] text-[11px] font-bold uppercase tracking-wider mb-1.5">
                     Registered Email
                   </Text>
                   <View
                     style={{
-                      borderColor: forgotEmailFocused
-                        ? "#34D399"
-                        : "rgba(16, 185, 129, 0.25)",
+                      borderColor: forgotEmailFocused ? "#10B981" : "#DCE7E1",
+                      backgroundColor: forgotEmailFocused
+                        ? "#FFFFFF"
+                        : "#F8FAF9",
                     }}
-                    className="flex-row items-center bg-[#021812]/80 border rounded-xl px-3.5 py-2.5"
+                    className="flex-row items-center border rounded-2xl px-3.5 py-2.5"
                   >
                     <Ionicons
                       name="mail-outline"
                       size={18}
-                      color={forgotEmailFocused ? "#34D399" : "#6EE7B7"}
+                      color={forgotEmailFocused ? "#10B981" : "#52796F"}
                       style={{ marginRight: 8 }}
                     />
                     <TextInput
@@ -907,11 +981,11 @@ export default function LoginScreen({ navigation, route }) {
                       onFocus={() => setForgotEmailFocused(true)}
                       onBlur={() => setForgotEmailFocused(false)}
                       placeholder="name@example.com"
-                      placeholderTextColor="rgba(110, 231, 183, 0.4)"
+                      placeholderTextColor="#8FA89B"
                       keyboardType="email-address"
                       autoCapitalize="none"
                       style={{ paddingVertical: 0 }}
-                      className="flex-1 text-white text-sm font-medium"
+                      className="flex-1 text-[#0F4634] text-sm font-medium"
                     />
                   </View>
                 </View>
@@ -919,38 +993,42 @@ export default function LoginScreen({ navigation, route }) {
                 {/* Send OTP Button */}
                 <TouchableOpacity
                   onPress={handleSendOtp}
+                  disabled={isSendingOtp}
                   activeOpacity={0.85}
                   style={{
-                    borderRadius: 12,
+                    borderRadius: 14,
                     overflow: "hidden",
                     marginBottom: 8,
+                    opacity: isSendingOtp ? 0.7 : 1,
                   }}
                 >
                   <LinearGradient
-                    colors={["#10B981", "#059669"]}
+                    colors={["#0F4634", "#155E47"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
                       justifyContent: "center",
-                      paddingVertical: 11,
+                      paddingVertical: 13,
                       paddingHorizontal: 16,
-                      borderRadius: 12,
+                      borderRadius: 14,
                     }}
                   >
-                    <Text
-                      style={{
-                        color: "#011B13",
-                        fontWeight: "700",
-                        fontSize: 14,
-                        letterSpacing: 0.5,
-                        marginRight: 6,
-                      }}
-                    >
-                      Send OTP Code
-                    </Text>
-                    <Ionicons name="arrow-forward" size={16} color="#011B13" />
+                    {isSendingOtp ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text
+                        style={{
+                          color: "#FFFFFF",
+                          fontWeight: "700",
+                          fontSize: 15,
+                          letterSpacing: 0.3,
+                        }}
+                      >
+                        Send OTP Code
+                      </Text>
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
               </>
@@ -959,7 +1037,7 @@ export default function LoginScreen({ navigation, route }) {
             {/* -------------------- 3. FORGOT PASSWORD - STEP 2: 6-DIGIT OTP -------------------- */}
             {authStep === "forgot_otp" && (
               <>
-                <Text className="text-emerald-200/80 text-[11px] font-semibold uppercase tracking-wider mb-2 text-center">
+                <Text className="text-[#1F382C] text-[11px] font-bold uppercase tracking-wider mb-3 text-center">
                   Enter 6-Digit Code
                 </Text>
 
@@ -976,18 +1054,16 @@ export default function LoginScreen({ navigation, route }) {
                       maxLength={1}
                       selectTextOnFocus
                       style={{
-                        width: 42,
-                        height: 48,
+                        width: 44,
+                        height: 50,
                         textAlign: "center",
                         fontSize: 18,
                         fontWeight: "bold",
-                        color: "#FFFFFF",
-                        backgroundColor: "rgba(2, 24, 18, 0.9)",
-                        borderRadius: 10,
+                        color: "#0F4634",
+                        backgroundColor: digit ? "#FFFFFF" : "#F8FAF9",
+                        borderRadius: 12,
                         borderWidth: 1.5,
-                        borderColor: digit
-                          ? "#34D399"
-                          : "rgba(16, 185, 129, 0.25)",
+                        borderColor: digit ? "#10B981" : "#DCE7E1",
                       }}
                     />
                   ))}
@@ -995,7 +1071,7 @@ export default function LoginScreen({ navigation, route }) {
 
                 {/* Resend Code Section */}
                 <View className="flex-row items-center justify-center mb-4">
-                  <Text className="text-emerald-100/60 text-xs">
+                  <Text className="text-[#52796F] text-xs">
                     Didn't receive code?{" "}
                   </Text>
                   {canResend ? (
@@ -1003,12 +1079,12 @@ export default function LoginScreen({ navigation, route }) {
                       onPress={handleResendOtp}
                       activeOpacity={0.7}
                     >
-                      <Text className="text-emerald-400 font-bold text-xs">
+                      <Text className="text-[#059669] font-bold text-xs">
                         Resend Code
                       </Text>
                     </TouchableOpacity>
                   ) : (
-                    <Text className="text-emerald-400/80 font-semibold text-xs">
+                    <Text className="text-[#52796F] font-semibold text-xs">
                       Resend in {timer}s
                     </Text>
                   )}
@@ -1017,42 +1093,50 @@ export default function LoginScreen({ navigation, route }) {
                 {/* Verify OTP Button */}
                 <TouchableOpacity
                   onPress={handleVerifyOtp}
+                  disabled={isVerifyingOtp}
                   activeOpacity={0.85}
                   style={{
-                    borderRadius: 12,
+                    borderRadius: 14,
                     overflow: "hidden",
                     marginBottom: 8,
+                    opacity: isVerifyingOtp ? 0.7 : 1,
                   }}
                 >
                   <LinearGradient
-                    colors={["#10B981", "#059669"]}
+                    colors={["#0F4634", "#155E47"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
                       justifyContent: "center",
-                      paddingVertical: 11,
+                      paddingVertical: 13,
                       paddingHorizontal: 16,
-                      borderRadius: 12,
+                      borderRadius: 14,
                     }}
                   >
-                    <Text
-                      style={{
-                        color: "#011B13",
-                        fontWeight: "700",
-                        fontSize: 14,
-                        letterSpacing: 0.5,
-                        marginRight: 6,
-                      }}
-                    >
-                      Verify Code
-                    </Text>
-                    <Ionicons
-                      name="shield-checkmark"
-                      size={16}
-                      color="#011B13"
-                    />
+                    {isVerifyingOtp ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Text
+                          style={{
+                            color: "#FFFFFF",
+                            fontWeight: "700",
+                            fontSize: 15,
+                            letterSpacing: 0.3,
+                            marginRight: 6,
+                          }}
+                        >
+                          Verify Code
+                        </Text>
+                        <Ionicons
+                          name="shield-checkmark"
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                      </>
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
               </>
@@ -1062,22 +1146,23 @@ export default function LoginScreen({ navigation, route }) {
             {authStep === "forgot_new_password" && (
               <>
                 {/* New Password */}
-                <View className="mb-3">
-                  <Text className="text-emerald-200/80 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+                <View className="mb-3.5">
+                  <Text className="text-[#1F382C] text-[11px] font-bold uppercase tracking-wider mb-1.5">
                     New Password
                   </Text>
                   <View
                     style={{
-                      borderColor: newPasswordFocused
-                        ? "#34D399"
-                        : "rgba(16, 185, 129, 0.25)",
+                      borderColor: newPasswordFocused ? "#10B981" : "#DCE7E1",
+                      backgroundColor: newPasswordFocused
+                        ? "#FFFFFF"
+                        : "#F8FAF9",
                     }}
-                    className="flex-row items-center bg-[#021812]/80 border rounded-xl px-3.5 py-2.5"
+                    className="flex-row items-center border rounded-2xl px-3.5 py-2.5"
                   >
                     <Ionicons
                       name="lock-closed-outline"
                       size={18}
-                      color={newPasswordFocused ? "#34D399" : "#6EE7B7"}
+                      color={newPasswordFocused ? "#10B981" : "#52796F"}
                       style={{ marginRight: 8 }}
                     />
                     <TextInput
@@ -1086,11 +1171,11 @@ export default function LoginScreen({ navigation, route }) {
                       onFocus={() => setNewPasswordFocused(true)}
                       onBlur={() => setNewPasswordFocused(false)}
                       placeholder="••••••••"
-                      placeholderTextColor="rgba(110, 231, 183, 0.4)"
+                      placeholderTextColor="#8FA89B"
                       secureTextEntry={!showNewPassword}
                       autoCapitalize="none"
                       style={{ paddingVertical: 0 }}
-                      className="flex-1 text-white text-sm font-medium"
+                      className="flex-1 text-[#0F4634] text-sm font-medium"
                     />
                     <TouchableOpacity
                       onPress={() => setShowNewPassword(!showNewPassword)}
@@ -1102,7 +1187,7 @@ export default function LoginScreen({ navigation, route }) {
                           showNewPassword ? "eye-off-outline" : "eye-outline"
                         }
                         size={18}
-                        color="rgba(110, 231, 183, 0.7)"
+                        color="#52796F"
                       />
                     </TouchableOpacity>
                   </View>
@@ -1110,21 +1195,24 @@ export default function LoginScreen({ navigation, route }) {
 
                 {/* Confirm New Password */}
                 <View className="mb-4">
-                  <Text className="text-emerald-200/80 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+                  <Text className="text-[#1F382C] text-[11px] font-bold uppercase tracking-wider mb-1.5">
                     Confirm New Password
                   </Text>
                   <View
                     style={{
                       borderColor: confirmNewPasswordFocused
-                        ? "#34D399"
-                        : "rgba(16, 185, 129, 0.25)",
+                        ? "#10B981"
+                        : "#DCE7E1",
+                      backgroundColor: confirmNewPasswordFocused
+                        ? "#FFFFFF"
+                        : "#F8FAF9",
                     }}
-                    className="flex-row items-center bg-[#021812]/80 border rounded-xl px-3.5 py-2.5"
+                    className="flex-row items-center border rounded-2xl px-3.5 py-2.5"
                   >
                     <Ionicons
                       name="shield-checkmark-outline"
                       size={18}
-                      color={confirmNewPasswordFocused ? "#34D399" : "#6EE7B7"}
+                      color={confirmNewPasswordFocused ? "#10B981" : "#52796F"}
                       style={{ marginRight: 8 }}
                     />
                     <TextInput
@@ -1133,11 +1221,11 @@ export default function LoginScreen({ navigation, route }) {
                       onFocus={() => setConfirmNewPasswordFocused(true)}
                       onBlur={() => setConfirmNewPasswordFocused(false)}
                       placeholder="••••••••"
-                      placeholderTextColor="rgba(110, 231, 183, 0.4)"
+                      placeholderTextColor="#8FA89B"
                       secureTextEntry={!showConfirmNewPassword}
                       autoCapitalize="none"
                       style={{ paddingVertical: 0 }}
-                      className="flex-1 text-white text-sm font-medium"
+                      className="flex-1 text-[#0F4634] text-sm font-medium"
                     />
                     <TouchableOpacity
                       onPress={() =>
@@ -1153,7 +1241,7 @@ export default function LoginScreen({ navigation, route }) {
                             : "eye-outline"
                         }
                         size={18}
-                        color="rgba(110, 231, 183, 0.7)"
+                        color="#52796F"
                       />
                     </TouchableOpacity>
                   </View>
@@ -1162,38 +1250,50 @@ export default function LoginScreen({ navigation, route }) {
                 {/* Reset Password Button */}
                 <TouchableOpacity
                   onPress={handleResetPassword}
+                  disabled={isResettingPassword}
                   activeOpacity={0.85}
                   style={{
-                    borderRadius: 12,
+                    borderRadius: 14,
                     overflow: "hidden",
                     marginBottom: 8,
+                    opacity: isResettingPassword ? 0.7 : 1,
                   }}
                 >
                   <LinearGradient
-                    colors={["#10B981", "#059669"]}
+                    colors={["#0F4634", "#155E47"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
                       justifyContent: "center",
-                      paddingVertical: 11,
+                      paddingVertical: 13,
                       paddingHorizontal: 16,
-                      borderRadius: 12,
+                      borderRadius: 14,
                     }}
                   >
-                    <Text
-                      style={{
-                        color: "#011B13",
-                        fontWeight: "700",
-                        fontSize: 14,
-                        letterSpacing: 0.5,
-                        marginRight: 6,
-                      }}
-                    >
-                      Reset Password
-                    </Text>
-                    <Ionicons name="checkmark-done" size={16} color="#011B13" />
+                    {isResettingPassword ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Text
+                          style={{
+                            color: "#FFFFFF",
+                            fontWeight: "700",
+                            fontSize: 15,
+                            letterSpacing: 0.3,
+                            marginRight: 6,
+                          }}
+                        >
+                          Reset Password
+                        </Text>
+                        <Ionicons
+                          name="checkmark-done"
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                      </>
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
               </>
@@ -1203,14 +1303,14 @@ export default function LoginScreen({ navigation, route }) {
           {/* Footer - Switch to Register (Shown in login mode) */}
           {authStep === "login" && (
             <View className="flex-row items-center justify-center mt-6">
-              <Text className="text-emerald-100/60 text-xs">
+              <Text className="text-[#52796F] text-xs font-medium">
                 Don't have an account?{" "}
               </Text>
               <TouchableOpacity
                 onPress={() => navigation?.navigate("Register")}
                 activeOpacity={0.7}
               >
-                <Text className="text-emerald-400 font-bold text-xs">
+                <Text className="text-[#0F4634] font-bold text-xs">
                   Sign Up
                 </Text>
               </TouchableOpacity>

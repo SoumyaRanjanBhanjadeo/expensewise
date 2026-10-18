@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import categoriesData from "../dummy/categories.json";
 import BottomBar from "../components/BottomBar";
 import RecieptModalScreen from "./RecieptModalScreen";
+import { useTheme } from "../context/ThemeContext";
 
 export default function RecieptScreen({
   navigation,
@@ -22,6 +23,7 @@ export default function RecieptScreen({
   hideBottomBar = false,
   onBack,
 }) {
+  const { isDarkMode, colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [categories, setCategories] = useState(categoriesData);
   const [modalVisible, setModalVisible] = useState(false);
@@ -32,6 +34,15 @@ export default function RecieptScreen({
       setCategories([...categoriesData]);
       setRefreshing(false);
     }, 1200);
+  }, []);
+
+  const handleAddCategory = useCallback((newCategory) => {
+    if (!newCategory) return;
+    setCategories((prev) => {
+      const exists = prev.some((c) => c.id === newCategory.id);
+      if (exists) return prev;
+      return [newCategory, ...prev];
+    });
   }, []);
 
   const handleAddReceipt = useCallback((newReceipt) => {
@@ -56,37 +67,63 @@ export default function RecieptScreen({
           };
         }
         return cat;
-      })
+      }),
     );
   }, []);
 
-  // Listen for receipt data passed back via serializable navigation params
+  // Listen for newCategory or receipt data passed back via serializable navigation params
   React.useEffect(() => {
+    if (route?.params?.newCategory) {
+      handleAddCategory(route.params.newCategory);
+      navigation?.setParams({ newCategory: undefined });
+    }
     if (route?.params?.newReceipt) {
       handleAddReceipt(route.params.newReceipt);
       navigation?.setParams({ newReceipt: undefined });
     }
-  }, [route?.params?.newReceipt]);
+  }, [route?.params?.newCategory, route?.params?.newReceipt]);
 
   const handleOpenAddReceipt = () => {
     if (navigation?.navigate) {
-      navigation.navigate("RecieptModalScreen");
+      navigation.navigate("RecieptModalScreen", {
+        onAddCategory: handleAddCategory,
+      });
     } else {
       setModalVisible(true);
     }
   };
 
+  const handleOpenCategoryDetail = (categoryItem) => {
+    if (navigation?.navigate) {
+      navigation.navigate("CategoryDetail", {
+        category: categoryItem,
+        onUpdateCategory: (updatedCat) => {
+          if (!updatedCat) return;
+          setCategories((prev) =>
+            prev.map((c) =>
+              c.id === updatedCat.id ? { ...c, ...updatedCat } : c,
+            ),
+          );
+        },
+      });
+    }
+  };
+
   return (
-    <View className="flex-1 bg-[#EEF4F1]">
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={colors.statusBarStyle}
         translucent
         backgroundColor="transparent"
       />
 
       {/* Atmospheric Soft Sage Gradient covering the top header */}
       <LinearGradient
-        colors={["#A1C4B5", "#B5D4C7", "#CBE3D7", "#DFEFE7", "#EEF4F1"]}
+        colors={
+          isDarkMode
+            ? ["#021F17", "#03261C", "#021A13"]
+            : ["#A1C4B5", "#B5D4C7", "#CBE3D7", "#DFEFE7", "#EEF4F1"]
+        }
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={styles.headerGradient}
@@ -105,22 +142,46 @@ export default function RecieptScreen({
           }}
           activeOpacity={0.8}
           className="w-11 h-11 rounded-full items-center justify-center"
-          style={styles.headerIconButton}
+          style={[
+            styles.headerIconButton,
+            {
+              backgroundColor: isDarkMode
+                ? "#04281E"
+                : "rgba(184, 215, 202, 0.7)",
+              borderColor: isDarkMode ? colors.cardBorder : "transparent",
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
         >
-          <Ionicons name="arrow-back" size={20} color="#1F382C" />
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isDarkMode ? "#E2F2EB" : "#1F382C"}
+          />
         </TouchableOpacity>
 
         {/* Header Title */}
-        <Text className="text-[20px] font-bold text-[#111827]">
-          Manage Receipts
+        <Text
+          style={{
+            fontSize: 20,
+            fontWeight: "700",
+            color: colors.textPrimary,
+          }}
+        >
+          Manage Category
         </Text>
 
         {/* Add Category (+) Button */}
         <TouchableOpacity
           onPress={handleOpenAddReceipt}
           activeOpacity={0.8}
-          className="w-11 h-11 rounded-full items-center justify-center bg-[#0F4634]"
-          style={styles.addButton}
+          className="w-11 h-11 rounded-full items-center justify-center"
+          style={[
+            styles.addButton,
+            {
+              backgroundColor: isDarkMode ? "#10B981" : "#0F4634",
+            },
+          ]}
         >
           <Ionicons name="add" size={24} color="#FFFFFF" />
         </TouchableOpacity>
@@ -143,9 +204,17 @@ export default function RecieptScreen({
         {categories.map((cat) => (
           <TouchableOpacity
             key={cat.id}
-            activeOpacity={0.9}
-            className="bg-white rounded-3xl p-4 mb-3.5"
-            style={styles.categoryCard}
+            onPress={() => handleOpenCategoryDetail(cat)}
+            activeOpacity={0.85}
+            className="rounded-3xl p-4 mb-3.5"
+            style={[
+              styles.categoryCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+                borderWidth: isDarkMode ? 1 : 0,
+              },
+            ]}
           >
             {/* Top Row: Emoji Icon, Category Name & Spent, Chevron */}
             <View className="flex-row items-center justify-between">
@@ -153,30 +222,65 @@ export default function RecieptScreen({
                 {/* Circular Emoji Icon */}
                 <View
                   className="w-11 h-11 rounded-full items-center justify-center mr-3.5"
-                  style={styles.emojiContainer}
+                  style={[
+                    styles.emojiContainer,
+                    isDarkMode && {
+                      backgroundColor: "#021A13",
+                      borderWidth: 1,
+                      borderColor: "rgba(16, 185, 129, 0.2)",
+                    },
+                  ]}
                 >
                   <Text style={styles.emojiText}>{cat.emoji}</Text>
                 </View>
 
                 {/* Details */}
                 <View className="flex-1">
-                  <Text className="text-[15px] font-bold text-[#111827]">
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: "700",
+                      color: colors.textPrimary,
+                    }}
+                  >
                     {cat.name}
                   </Text>
-                  <Text className="text-[18px] font-black text-[#111827] mt-0.5">
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "800",
+                      color: colors.textPrimary,
+                      marginTop: 2,
+                    }}
+                  >
                     {cat.spent}
                   </Text>
                 </View>
               </View>
 
               {/* Chevron Right */}
-              <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+              <TouchableOpacity
+                onPress={() => handleOpenCategoryDetail(cat)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={isDarkMode ? colors.textMuted : "#6B7280"}
+                />
+              </TouchableOpacity>
             </View>
 
             {/* Middle Row: Progress Bar */}
             <View
-              className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden mt-3.5 mb-2.5"
-              style={styles.progressTrack}
+              className="h-1.5 w-full rounded-full overflow-hidden mt-3.5 mb-2.5"
+              style={[
+                styles.progressTrack,
+                isDarkMode && {
+                  backgroundColor: "rgba(255, 255, 255, 0.08)",
+                },
+              ]}
             >
               <View
                 style={[
@@ -191,10 +295,22 @@ export default function RecieptScreen({
 
             {/* Bottom Row: Percentage and Left Budget */}
             <View className="flex-row items-center justify-between">
-              <Text className="text-[12px] font-bold text-[#111827]">
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "700",
+                  color: colors.textMuted,
+                }}
+              >
                 {cat.percentage} of budget
               </Text>
-              <Text className="text-[12px] font-bold text-[#111827]">
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "700",
+                  color: colors.textPrimary,
+                }}
+              >
                 {cat.leftAmount}
               </Text>
             </View>
@@ -227,7 +343,10 @@ export default function RecieptScreen({
       >
         <RecieptModalScreen
           onClose={() => setModalVisible(false)}
-          onAddReceipt={handleAddReceipt}
+          onAddCategory={(cat) => {
+            handleAddCategory(cat);
+            setModalVisible(false);
+          }}
         />
       </Modal>
     </View>
@@ -235,6 +354,9 @@ export default function RecieptScreen({
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   headerGradient: {
     position: "absolute",
     top: 0,

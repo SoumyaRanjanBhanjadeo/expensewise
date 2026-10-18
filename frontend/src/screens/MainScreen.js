@@ -5,8 +5,10 @@ import TransactionScreen from "./TransactionScreen";
 import RecieptScreen from "./RecieptScreen";
 import InsightScreen from "./InsightScreen";
 import BottomBar from "../components/BottomBar";
+import { useTheme } from "../context/ThemeContext";
 
 export default function MainScreen({ navigation, route }) {
+  const { colors } = useTheme();
   const initialTab = route?.params?.initialTab || "home";
   const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -22,9 +24,9 @@ export default function MainScreen({ navigation, route }) {
   }, [route?.params?.initialTab]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Active Screen Area */}
-      <View style={styles.contentContainer}>
+      <View style={[styles.contentContainer, { backgroundColor: colors.background }]}>
         {(activeTab === "home" ||
           (activeTab !== "transactions" &&
             activeTab !== "receipts" &&
@@ -68,10 +70,8 @@ export default function MainScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#EEF4F1",
   },
   contentContainer: {
     flex: 1,
-    backgroundColor: "#EEF4F1",
   },
 });

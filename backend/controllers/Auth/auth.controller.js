@@ -3,7 +3,11 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../../models/auth.model");
 const Otp = require("../../models/otp.model");
-const { sendWelcomeEmail, sendOtpEmail } = require("../../config/mailer");
+const {
+  sendWelcomeEmail,
+  sendOtpEmail,
+  sendResetPasswordEmail,
+} = require("../../config/mailer");
 
 const BCRYPT_SALT_ROUNDS = 10;
 const OTP_TTL_MS = 10 * 60 * 1000; // OTP stays valid for 10 minutes
@@ -59,7 +63,8 @@ const createAccount = async (req, res) => {
         await existingUser.save();
         return res.status(201).json({
           success: true,
-          message: "Account reactivated successfully. Please sign in to continue.",
+          message:
+            "Account reactivated successfully. Please sign in to continue.",
           data: { user: existingUser },
         });
       }
@@ -79,6 +84,11 @@ const createAccount = async (req, res) => {
       biometricLogin: biometricLogin || false,
     });
 
+    // Send welcome email
+    sendWelcomeEmail(user.email, user.username).catch((err) => {
+      console.warn("Could not send welcome email:", err.message);
+    });
+
     return res.status(201).json({
       success: true,
       message: "Account created successfully. Please sign in to continue.",
@@ -87,7 +97,8 @@ const createAccount = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "We couldn't create your account right now. Please try again in a moment.",
+      message:
+        "Can't create your account right now. Please try again in a moment.",
       error: error.message,
     });
   }
@@ -129,7 +140,8 @@ const login = async (req, res) => {
     if (user.provider === "google" && !user.password) {
       return res.status(401).json({
         success: false,
-        message: "This account uses Google sign-in. Please continue with Google",
+        message:
+          "This account uses Google sign-in. Please continue with Google",
       });
     }
 
@@ -155,7 +167,7 @@ const login = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "We couldn't sign you in right now. Please try again in a moment.",
+      message: "Couldn't sign you in right now. Please try again in a moment.",
       error: error.message,
     });
   }
@@ -175,7 +187,7 @@ const googleLogin = async (req, res) => {
     // Verify the Google token when it is sent, so nobody can fake a login
     if (tokenId) {
       const response = await fetch(
-        `https://oauth2.googleapis.com/tokeninfo?id_token=${tokenId}`
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${tokenId}`,
       );
       if (!response.ok) {
         return res
@@ -187,9 +199,10 @@ const googleLogin = async (req, res) => {
         googleUser.email !== email.toLowerCase().trim() ||
         String(googleUser.email_verified) !== "true"
       ) {
-        return res
-          .status(401)
-          .json({ success: false, message: "Google email could not be verified" });
+        return res.status(401).json({
+          success: false,
+          message: "Google email could not be verified",
+        });
       }
     }
 
@@ -239,7 +252,8 @@ const googleLogin = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "We couldn't sign you in with Google right now. Please try again in a moment.",
+      message:
+        "Couldn't sign you in with Google right now. Please try again in a moment.",
       error: error.message,
     });
   }
@@ -257,11 +271,11 @@ const forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase().trim() });
 
-    // Reply the same way even when the email is unknown, so emails are not leaked
+    // If no account exists with this email, return error
     if (!user || user.deletedAt || !user.isActive) {
-      return res.status(200).json({
-        success: true,
-        message: "If an account exists with this email, an OTP has been sent",
+      return res.status(404).json({
+        success: false,
+        message: "There is no account registered with this email address.",
       });
     }
 
@@ -269,7 +283,8 @@ const forgotPassword = async (req, res) => {
     if (user.provider === "google" && !user.password) {
       return res.status(400).json({
         success: false,
-        message: "This account uses Google sign-in and has no password to reset",
+        message:
+          "This account uses Google sign-in and has no password to reset",
       });
     }
 
@@ -292,10 +307,15 @@ const forgotPassword = async (req, res) => {
       message: "Password reset OTP sent to your email",
     });
   } catch (error) {
+    const errorDetails = error?.errors
+      ? error.errors.map((e) => e.message || String(e)).join("; ")
+      : error?.message || String(error);
+    console.error("Forgot password error:", errorDetails, error);
     return res.status(500).json({
       success: false,
-      message: "We couldn't send the reset code right now. Please try again in a moment.",
-      error: error.message,
+      message:
+        "Couldn't send the reset code right now. Please try again in a moment.",
+      error: errorDetails,
     });
   }
 };
@@ -326,7 +346,8 @@ const verifyOtp = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "We couldn't check the code right now. Please try again in a moment.",
+      message:
+        "Couldn't check the code right now. Please try again in a moment.",
       error: error.message,
     });
   }
@@ -368,6 +389,14 @@ const resetPassword = async (req, res) => {
     user.password = password;
     await user.save();
 
+    // Send password reset confirmation email
+    sendResetPasswordEmail(user.email, user.username).catch((err) => {
+      console.warn(
+        "Could not send password reset confirmation email:",
+        err.message,
+      );
+    });
+
     return res.status(200).json({
       success: true,
       message: "Password reset successfully. You can now login",
@@ -375,7 +404,8 @@ const resetPassword = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "We couldn't update your password right now. Please try again in a moment.",
+      message:
+        "Couldn't update your password right now. Please try again in a moment.",
       error: error.message,
     });
   }
@@ -405,7 +435,8 @@ const getMe = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "We couldn't load your profile right now. Please try again in a moment.",
+      message:
+        "Couldn't load your profile right now. Please try again in a moment.",
       error: error.message,
     });
   }

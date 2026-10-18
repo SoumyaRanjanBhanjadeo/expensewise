@@ -19,6 +19,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import BottomBar from "../components/BottomBar";
+import { useTheme } from "../context/ThemeContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -37,6 +38,7 @@ export default function InsightScreen({
   hideBottomBar = false,
   onBack,
 }) {
+  const { isDarkMode, colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState("may");
   const [selectedCategory, setSelectedCategory] = useState("food");
@@ -59,16 +61,20 @@ export default function InsightScreen({
   };
 
   return (
-    <View className="flex-1 bg-[#EEF4F1]">
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={colors.statusBarStyle}
         translucent
         backgroundColor="transparent"
       />
 
       {/* Atmospheric Soft Sage Gradient covering the top header */}
       <LinearGradient
-        colors={["#A1C4B5", "#B5D4C7", "#CBE3D7", "#DFEFE7", "#EEF4F1"]}
+        colors={
+          isDarkMode
+            ? ["#021F17", "#03261C", "#021A13"]
+            : ["#A1C4B5", "#B5D4C7", "#CBE3D7", "#DFEFE7", "#EEF4F1"]
+        }
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={styles.headerGradient}
@@ -81,13 +87,30 @@ export default function InsightScreen({
           onPress={handleBack}
           activeOpacity={0.8}
           className="w-11 h-11 rounded-full items-center justify-center"
-          style={styles.headerIconButton}
+          style={[
+            styles.headerIconButton,
+            {
+              backgroundColor: isDarkMode ? "#04281E" : "rgba(184, 215, 202, 0.7)",
+              borderColor: isDarkMode ? colors.cardBorder : "transparent",
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
         >
-          <Ionicons name="arrow-back" size={20} color="#1F382C" />
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isDarkMode ? "#E2F2EB" : "#1F382C"}
+          />
         </TouchableOpacity>
 
         {/* Header Title */}
-        <Text className="text-[20px] font-bold text-[#111827]">
+        <Text
+          style={{
+            fontSize: 20,
+            fontWeight: "700",
+            color: colors.textPrimary,
+          }}
+        >
           Insights
         </Text>
 
@@ -95,10 +118,21 @@ export default function InsightScreen({
         <TouchableOpacity
           activeOpacity={0.8}
           className="w-11 h-11 rounded-full items-center justify-center"
-          style={styles.headerIconButton}
+          style={[
+            styles.headerIconButton,
+            {
+              backgroundColor: isDarkMode ? "#04281E" : "rgba(184, 215, 202, 0.7)",
+              borderColor: isDarkMode ? colors.cardBorder : "transparent",
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
           onPress={() => {}}
         >
-          <Ionicons name="options-outline" size={20} color="#1F382C" />
+          <Ionicons
+            name="options-outline"
+            size={20}
+            color={isDarkMode ? "#E2F2EB" : "#1F382C"}
+          />
         </TouchableOpacity>
       </View>
 
@@ -119,29 +153,73 @@ export default function InsightScreen({
       >
         {/* Section 1: Today's Spend */}
         <View style={styles.todaySpendSection}>
-          <Text style={styles.sectionSmallTitle}>Today's Spend</Text>
+          <Text style={[styles.sectionSmallTitle, { color: colors.textMuted }]}>
+            Today's Spend
+          </Text>
 
           <View style={styles.todayAmountRow}>
-            <Text style={styles.todayAmountText}>₹250.00</Text>
+            <Text
+              style={[
+                styles.todayAmountText,
+                { color: colors.textPrimary },
+              ]}
+            >
+              ₹250.00
+            </Text>
 
             <View style={styles.yesterdayBadgeContainer}>
-              <View style={styles.downBadge}>
-                <Ionicons name="trending-down" size={13} color="#166534" />
-                <Text style={styles.downBadgeText}>6%</Text>
+              <View
+                style={[
+                  styles.downBadge,
+                  isDarkMode && { backgroundColor: "rgba(16, 185, 129, 0.2)" },
+                ]}
+              >
+                <Ionicons
+                  name="trending-down"
+                  size={13}
+                  color={isDarkMode ? "#34D399" : "#166534"}
+                />
+                <Text
+                  style={[
+                    styles.downBadgeText,
+                    isDarkMode && { color: "#34D399" },
+                  ]}
+                >
+                  6%
+                </Text>
               </View>
-              <Text style={styles.thanYesterdayText}>than yesterday</Text>
+              <Text
+                style={[
+                  styles.thanYesterdayText,
+                  { color: colors.textMuted },
+                ]}
+              >
+                than yesterday
+              </Text>
             </View>
           </View>
 
-          <Text style={styles.todaySubtitle}>Mostly on Food & Dining</Text>
+          <Text style={[styles.todaySubtitle, { color: colors.textMuted }]}>
+            Mostly on Food & Dining
+          </Text>
         </View>
 
         {/* Section 2: Monthly Comparison Card (Dark Emerald Gradient Card) */}
         <LinearGradient
-          colors={["#185F44", "#1E6E4E", "#278962"]}
+          colors={
+            isDarkMode
+              ? ["#053B29", "#084934", "#0C5940"]
+              : ["#185F44", "#1E6E4E", "#278962"]
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.monthlyCard}
+          style={[
+            styles.monthlyCard,
+            isDarkMode && {
+              borderWidth: 1,
+              borderColor: "rgba(16, 185, 129, 0.25)",
+            },
+          ]}
         >
           <Text style={styles.monthlyCardTitle}>Monthly Comparison</Text>
 
@@ -239,24 +317,45 @@ export default function InsightScreen({
           </View>
         </LinearGradient>
 
-        {/* Section 3: Category Breakdown Card (White Card) */}
-        <View style={styles.categoryCard}>
+        {/* Section 3: Category Breakdown Card */}
+        <View
+          style={[
+            styles.categoryCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
+        >
           <View style={styles.categoryCardHeader}>
-            <Text style={styles.categoryCardTitle}>Category Breakdown</Text>
-            <Text style={styles.categoryCountText}>
+            <Text style={[styles.categoryCardTitle, { color: colors.textPrimary }]}>
+              Category Breakdown
+            </Text>
+            <Text style={[styles.categoryCountText, { color: colors.textMuted }]}>
               Total Categories{" "}
-              <Text style={{ fontWeight: "800", color: "#0F172A" }}>6</Text>
+              <Text style={{ fontWeight: "800", color: colors.textPrimary }}>6</Text>
             </Text>
           </View>
 
-          <Text style={styles.totalSpendLabel}>Total Spendings</Text>
-          <Text style={styles.totalSpendValue}>₹7620.00</Text>
+          <Text style={[styles.totalSpendLabel, { color: colors.textMuted }]}>
+            Total Spendings
+          </Text>
+          <Text style={[styles.totalSpendValue, { color: colors.textPrimary }]}>
+            ₹7620.00
+          </Text>
 
           {/* Bar Chart Visualization */}
           <View style={styles.barChartContainer}>
-            {/* Bar 1: Food & Beverages (Dark Black) */}
+            {/* Bar 1: Food & Beverages */}
             <View style={styles.barColumn}>
-              <View style={[styles.barPill, styles.barDark]} />
+              <View
+                style={[
+                  styles.barPill,
+                  styles.barDark,
+                  isDarkMode && { backgroundColor: "#34D399" },
+                ]}
+              />
             </View>
 
             {/* Bar 2: Transportation (Lime Green) */}
@@ -272,45 +371,101 @@ export default function InsightScreen({
             {/* Bar 4: Highlighted Category (Food - with pizza badge and tooltip) */}
             <View style={[styles.barColumn, styles.activeCategoryColumn]}>
               {/* Category Icon Badge */}
-              <View style={styles.categoryIconCircle}>
+              <View
+                style={[
+                  styles.categoryIconCircle,
+                  {
+                    backgroundColor: isDarkMode ? "#021A13" : "#FFFFFF",
+                    borderColor: isDarkMode
+                      ? "rgba(16, 185, 129, 0.3)"
+                      : "#F1F5F9",
+                  },
+                ]}
+              >
                 <Text style={{ fontSize: 16 }}>🍕</Text>
               </View>
 
               {/* Translucent Frosted Capsule with Amount and Percentage */}
-              <View style={styles.activePillCapsule}>
-                <Text style={styles.activePillAmount}>₹2450</Text>
-                <Text style={styles.activePillPercent}>86%</Text>
+              <View
+                style={[
+                  styles.activePillCapsule,
+                  isDarkMode && {
+                    backgroundColor: "rgba(16, 185, 129, 0.18)",
+                    borderColor: "rgba(16, 185, 129, 0.35)",
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.activePillAmount,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  ₹2450
+                </Text>
+                <Text
+                  style={[
+                    styles.activePillPercent,
+                    isDarkMode && { color: "#34D399" },
+                  ]}
+                >
+                  86%
+                </Text>
                 <View style={styles.activePillStem} />
               </View>
             </View>
 
-            {/* Bar 5: Other / Entertainment (Light gray) */}
+            {/* Bar 5: Other / Entertainment */}
             <View style={styles.barColumn}>
-              <View style={[styles.barPill, styles.barGray]} />
+              <View
+                style={[
+                  styles.barPill,
+                  styles.barGray,
+                  isDarkMode && { backgroundColor: "rgba(255, 255, 255, 0.15)" },
+                ]}
+              />
             </View>
           </View>
 
           {/* Legend Row at the Bottom */}
-          <View style={styles.legendRow}>
+          <View
+            style={[
+              styles.legendRow,
+              {
+                borderTopColor: isDarkMode
+                  ? "rgba(255, 255, 255, 0.1)"
+                  : "#F1F5F9",
+              },
+            ]}
+          >
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendDot, { backgroundColor: "#0F172A" }]}
+                style={[
+                  styles.legendDot,
+                  { backgroundColor: isDarkMode ? "#34D399" : "#0F172A" },
+                ]}
               />
-              <Text style={styles.legendText}>Food & Beverages</Text>
+              <Text style={[styles.legendText, { color: colors.textMuted }]}>
+                Food & Beverages
+              </Text>
             </View>
 
             <View style={styles.legendItem}>
               <View
                 style={[styles.legendDot, { backgroundColor: "#84CC16" }]}
               />
-              <Text style={styles.legendText}>Transportation</Text>
+              <Text style={[styles.legendText, { color: colors.textMuted }]}>
+                Transportation
+              </Text>
             </View>
 
             <View style={styles.legendItem}>
               <View
                 style={[styles.legendDot, { backgroundColor: "#10B981" }]}
               />
-              <Text style={styles.legendText}>Shopping</Text>
+              <Text style={[styles.legendText, { color: colors.textMuted }]}>
+                Shopping
+              </Text>
             </View>
           </View>
         </View>

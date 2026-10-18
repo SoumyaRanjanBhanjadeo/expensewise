@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import dashboardData from "../dummy/dashboard.json";
 import BottomBar from "../components/BottomBar";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
 export default function DashboardScreen({
   navigation,
@@ -23,6 +24,7 @@ export default function DashboardScreen({
   onNavigateToTransactions,
 }) {
   const { user: authUser } = useAuth();
+  const { isDarkMode, toggleTheme, colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
 
   const {
@@ -51,16 +53,20 @@ export default function DashboardScreen({
   }, []);
 
   return (
-    <View className="flex-1 bg-[#EEF4F1]">
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={colors.statusBarStyle}
         translucent
         backgroundColor="transparent"
       />
 
       {/* Atmospheric Soft Sage Gradient covering the top half */}
       <LinearGradient
-        colors={["#A1C4B5", "#B5D4C7", "#CBE3D7", "#DFEFE7", "#EEF4F1"]}
+        colors={
+          isDarkMode
+            ? ["#021F17", "#03261C", "#021A13", "#021812", "#021812"]
+            : ["#A1C4B5", "#B5D4C7", "#CBE3D7", "#DFEFE7", "#EEF4F1"]
+        }
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={styles.headerGradient}
@@ -94,32 +100,58 @@ export default function DashboardScreen({
             </View>
           </TouchableOpacity>
 
-          {/* User Profile Avatar */}
-          <TouchableOpacity
-            onPress={() => navigation?.navigate("Profile")}
-            activeOpacity={0.8}
-            className="w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm elevation-3 items-center justify-center bg-[#0F4634]"
-          >
-            {authUser?.avatar ? (
-              <Image
-                source={{ uri: authUser.avatar }}
-                className="w-full h-full"
-                resizeMode="cover"
+          {/* Right Header Actions: Theme Toggle + Profile Avatar */}
+          <View className="flex-row items-center">
+            {/* Light / Dark Mode Toggle Button */}
+            <TouchableOpacity
+              onPress={toggleTheme}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: isDarkMode ? "#04281E" : "#FFFFFF",
+                borderColor: isDarkMode ? "rgba(16, 185, 129, 0.3)" : "#E3EDE7",
+              }}
+              className="w-11 h-11 rounded-full border items-center justify-center mr-2.5 shadow-sm elevation-3"
+            >
+              <Ionicons
+                name={isDarkMode ? "sunny" : "moon"}
+                size={18}
+                color={isDarkMode ? "#FBBF24" : "#0F4634"}
               />
-            ) : (
-              <Text className="text-white font-bold text-sm tracking-wider">
-                {getInitials(authUser?.username || authUser?.name || "")}
-              </Text>
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+
+            {/* User Profile Avatar */}
+            <TouchableOpacity
+              onPress={() => navigation?.navigate("Profile")}
+              activeOpacity={0.8}
+              className="w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm elevation-3 items-center justify-center bg-[#0F4634]"
+            >
+              {authUser?.avatar ? (
+                <Image
+                  source={{ uri: authUser.avatar }}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text className="text-white font-bold text-sm tracking-wider">
+                  {getInitials(authUser?.username || authUser?.name || "")}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Monthly Overview Section */}
         <View className="px-5 mt-1 mb-4">
-          <Text className="text-[13px] font-semibold text-[#1F382C] tracking-wide">
+          <Text
+            style={{ color: colors.textMuted }}
+            className="text-[13px] font-semibold tracking-wide"
+          >
             Monthly Overview
           </Text>
-          <Text className="text-[38px] font-black text-[#0F4634] tracking-tight mt-0.5 mb-3.5">
+          <Text
+            style={{ color: colors.textPrimary }}
+            className="text-[38px] font-black tracking-tight mt-0.5 mb-3.5"
+          >
             ₹ {monthlyOverview.total.toFixed(2)}
           </Text>
 
@@ -128,33 +160,66 @@ export default function DashboardScreen({
             {/* Top Labels and Figures Row */}
             <View className="flex-row mb-3.5 items-end">
               {/* Thin White Left Border Line */}
-              <View className="w-[1.5px] h-[38px] bg-white/80 mr-2" />
+              <View
+                style={{
+                  backgroundColor: isDarkMode
+                    ? "rgba(255, 255, 255, 0.25)"
+                    : "rgba(255, 255, 255, 0.8)",
+                }}
+                className="w-[1.5px] h-[38px] mr-2"
+              />
 
               {/* Spend Column */}
               <View style={styles.spendColumn} className="pr-3.5">
-                <Text className="text-[13px] font-medium text-[#4A6357] text-right">
+                <Text
+                  style={{ color: colors.textMuted }}
+                  className="text-[13px] font-medium text-right"
+                >
                   Spend
                 </Text>
-                <Text className="text-[20px] font-black text-black text-right mt-0.5">
+                <Text
+                  style={{ color: isDarkMode ? "#FFFFFF" : "#000000" }}
+                  className="text-[20px] font-black text-right mt-0.5"
+                >
                   ₹ {monthlyOverview.spend.toFixed(2)}
                 </Text>
               </View>
 
               {/* Thin White Vertical Divider */}
-              <View className="w-[1.5px] h-[38px] bg-white/80" />
+              <View
+                style={{
+                  backgroundColor: isDarkMode
+                    ? "rgba(255, 255, 255, 0.25)"
+                    : "rgba(255, 255, 255, 0.8)",
+                }}
+                className="w-[1.5px] h-[38px]"
+              />
 
               {/* Remaining Column */}
               <View style={styles.remainingColumn} className="pl-3.5">
-                <Text className="text-[13px] font-medium text-[#4A6357] text-right">
+                <Text
+                  style={{ color: colors.textMuted }}
+                  className="text-[13px] font-medium text-right"
+                >
                   Remaining
                 </Text>
-                <Text className="text-[20px] font-black text-black text-right mt-0.5">
+                <Text
+                  style={{ color: isDarkMode ? "#FFFFFF" : "#000000" }}
+                  className="text-[20px] font-black text-right mt-0.5"
+                >
                   ₹ {monthlyOverview.remaining.toFixed(2)}
                 </Text>
               </View>
 
               {/* Thin White Right Border Line */}
-              <View className="w-[1.5px] h-[38px] bg-white/80 ml-2" />
+              <View
+                style={{
+                  backgroundColor: isDarkMode
+                    ? "rgba(255, 255, 255, 0.25)"
+                    : "rgba(255, 255, 255, 0.8)",
+                }}
+                className="w-[1.5px] h-[38px] ml-2"
+              />
             </View>
 
             {/* Bottom Graphic Row */}
@@ -260,15 +325,30 @@ export default function DashboardScreen({
 
         {/* Recent Transactions Bottom Sheet Card (Extends down with no gaps) */}
         <View
-          className="flex-1 bg-white rounded-t-[32px] pt-3.5 px-5 pb-[130px]"
-          style={styles.bottomSheetCard}
+          style={[
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              borderTopWidth: 1,
+            },
+            styles.bottomSheetCard,
+          ]}
+          className="flex-1 rounded-t-[32px] pt-3.5 px-5 pb-[130px]"
         >
           {/* Top Sheet Drag Handle */}
-          <View className="w-10 h-1 rounded-full bg-gray-200 self-center mb-4" />
+          <View
+            style={{
+              backgroundColor: isDarkMode ? "#0F3B2C" : "#E5E7EB",
+            }}
+            className="w-10 h-1 rounded-full self-center mb-4"
+          />
 
           {/* Section Header */}
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-[17px] font-black text-gray-900 tracking-tight">
+            <Text
+              style={{ color: colors.textPrimary }}
+              className="text-[17px] font-black tracking-tight"
+            >
               Recent Transactions
             </Text>
             <TouchableOpacity
@@ -281,7 +361,10 @@ export default function DashboardScreen({
                 }
               }}
             >
-              <Text className="text-[12px] font-semibold text-gray-400">
+              <Text
+                style={{ color: colors.textMuted }}
+                className="text-[12px] font-semibold"
+              >
                 View All
               </Text>
             </TouchableOpacity>
@@ -291,7 +374,8 @@ export default function DashboardScreen({
           {recentTransactions.map((tx) => (
             <View
               key={tx.id}
-              className="flex-row items-center justify-between py-3 border-b border-gray-100"
+              style={{ borderBottomColor: colors.divider }}
+              className="flex-row items-center justify-between py-3 border-b"
             >
               {/* Left Icon & Details */}
               <View className="flex-row items-center flex-1 pr-2">
@@ -305,10 +389,16 @@ export default function DashboardScreen({
                 </View>
 
                 <View className="flex-1">
-                  <Text className="text-[14px] font-bold text-gray-900 mb-0.5">
+                  <Text
+                    style={{ color: colors.textPrimary }}
+                    className="text-[14px] font-bold mb-0.5"
+                  >
                     {tx.title}
                   </Text>
-                  <Text className="text-[12px] font-medium text-gray-400">
+                  <Text
+                    style={{ color: colors.textMuted }}
+                    className="text-[12px] font-medium"
+                  >
                     {tx.category} • {tx.paymentMethod}
                   </Text>
                 </View>
@@ -316,10 +406,16 @@ export default function DashboardScreen({
 
               {/* Right Amount & Time */}
               <View className="items-end">
-                <Text className="text-[14px] font-extrabold text-gray-900">
+                <Text
+                  style={{ color: colors.textPrimary }}
+                  className="text-[14px] font-extrabold"
+                >
                   {tx.amount}
                 </Text>
-                <Text className="text-[11px] font-medium text-gray-400 mt-0.5">
+                <Text
+                  style={{ color: colors.textMuted }}
+                  className="text-[11px] font-medium mt-0.5"
+                >
                   {tx.time}
                 </Text>
               </View>

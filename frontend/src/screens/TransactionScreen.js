@@ -13,12 +13,14 @@ import { Ionicons } from "@expo/vector-icons";
 
 import transactionsData from "../dummy/transactions.json";
 import BottomBar from "../components/BottomBar";
+import { useTheme } from "../context/ThemeContext";
 
 export default function TransactionScreen({
   navigation,
   hideBottomBar = false,
   onBack,
 }) {
+  const { isDarkMode, colors } = useTheme();
   const [selectedFilter, setSelectedFilter] = useState("All");
   const [refreshing, setRefreshing] = useState(false);
 
@@ -44,16 +46,20 @@ export default function TransactionScreen({
   }, [selectedFilter]);
 
   return (
-    <View className="flex-1 bg-[#EEF4F1]">
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={colors.statusBarStyle}
         translucent
         backgroundColor="transparent"
       />
 
       {/* Atmospheric Soft Sage Gradient covering the top header */}
       <LinearGradient
-        colors={["#A1C4B5", "#B5D4C7", "#CBE3D7", "#DFEFE7", "#EEF4F1"]}
+        colors={
+          isDarkMode
+            ? ["#021F17", "#03261C", "#021A13"]
+            : ["#A1C4B5", "#B5D4C7", "#CBE3D7", "#DFEFE7", "#EEF4F1"]
+        }
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={styles.headerGradient}
@@ -72,13 +78,30 @@ export default function TransactionScreen({
           }}
           activeOpacity={0.8}
           className="w-11 h-11 rounded-full items-center justify-center"
-          style={styles.headerIconButton}
+          style={[
+            styles.headerIconButton,
+            {
+              backgroundColor: isDarkMode ? "#04281E" : "rgba(184, 215, 202, 0.7)",
+              borderColor: isDarkMode ? colors.cardBorder : "transparent",
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
         >
-          <Ionicons name="arrow-back" size={20} color="#1F382C" />
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isDarkMode ? "#E2F2EB" : "#1F382C"}
+          />
         </TouchableOpacity>
 
         {/* Header Title */}
-        <Text className="text-[20px] font-bold text-[#111827]">
+        <Text
+          style={{
+            fontSize: 20,
+            fontWeight: "700",
+            color: colors.textPrimary,
+          }}
+        >
           Transactions
         </Text>
 
@@ -86,9 +109,20 @@ export default function TransactionScreen({
         <TouchableOpacity
           activeOpacity={0.8}
           className="w-11 h-11 rounded-full items-center justify-center"
-          style={styles.headerIconButton}
+          style={[
+            styles.headerIconButton,
+            {
+              backgroundColor: isDarkMode ? "#04281E" : "rgba(184, 215, 202, 0.7)",
+              borderColor: isDarkMode ? colors.cardBorder : "transparent",
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
         >
-          <Ionicons name="options-outline" size={20} color="#1F382C" />
+          <Ionicons
+            name="options-outline"
+            size={20}
+            color={isDarkMode ? "#E2F2EB" : "#1F382C"}
+          />
         </TouchableOpacity>
       </View>
 
@@ -101,14 +135,29 @@ export default function TransactionScreen({
               key={filter}
               onPress={() => setSelectedFilter(filter)}
               activeOpacity={0.8}
-              className={`px-4 py-2 rounded-full mr-2.5 ${
-                isActive ? "bg-[#114F3A]" : "bg-[#D9E9E0]"
-              }`}
+              style={[
+                styles.filterPill,
+                isActive
+                  ? {
+                      backgroundColor: isDarkMode ? "#10B981" : "#114F3A",
+                    }
+                  : {
+                      backgroundColor: isDarkMode ? "#04281E" : "#D9E9E0",
+                      borderColor: isDarkMode ? "rgba(16, 185, 129, 0.25)" : "transparent",
+                      borderWidth: isDarkMode ? 1 : 0,
+                    },
+              ]}
             >
               <Text
-                className={`text-[13px] font-semibold ${
-                  isActive ? "text-white font-bold" : "text-[#1F382C]"
-                }`}
+                style={{
+                  fontSize: 13,
+                  fontWeight: isActive ? "700" : "600",
+                  color: isActive
+                    ? "#FFFFFF"
+                    : isDarkMode
+                    ? "#8EB7A4"
+                    : "#1F382C",
+                }}
               >
                 {filter}
               </Text>
@@ -134,38 +183,82 @@ export default function TransactionScreen({
         {filteredGroups.map((group) => (
           <View key={group.date} className="mb-2">
             {/* Group Date Header */}
-            <Text className="text-[14px] font-bold text-[#1F2937] mb-2.5 mt-2 ml-1">
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "700",
+                color: colors.textMuted,
+                marginBottom: 10,
+                marginTop: 8,
+                marginLeft: 4,
+              }}
+            >
               {group.date}
             </Text>
 
-            {/* White Rounded Card containing group transactions */}
+            {/* Rounded Card containing group transactions */}
             <View
-              className="bg-white rounded-[26px] px-4 py-1 mb-2"
-              style={styles.groupCard}
+              className="rounded-[26px] px-4 py-1 mb-2"
+              style={[
+                styles.groupCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.cardBorder,
+                  borderWidth: isDarkMode ? 1 : 0,
+                },
+              ]}
             >
               {group.transactions.map((tx, idx) => {
                 const isLast = idx === group.transactions.length - 1;
                 return (
                   <View
                     key={tx.id}
-                    className={`flex-row items-center justify-between py-3.5 ${
-                      !isLast ? "border-b border-gray-100" : ""
-                    }`}
+                    className="flex-row items-center justify-between py-3.5"
+                    style={
+                      !isLast
+                        ? {
+                            borderBottomWidth: 1,
+                            borderBottomColor: isDarkMode
+                              ? "rgba(255, 255, 255, 0.08)"
+                              : "#F3F4F6",
+                          }
+                        : {}
+                    }
                   >
                     {/* Left Emoji Icon & Details */}
                     <View className="flex-row items-center flex-1 pr-2">
                       <View
                         className="w-11 h-11 rounded-full items-center justify-center mr-3"
-                        style={styles.emojiContainer}
+                        style={[
+                          styles.emojiContainer,
+                          isDarkMode && {
+                            backgroundColor: "#021A13",
+                            borderWidth: 1,
+                            borderColor: "rgba(16, 185, 129, 0.2)",
+                          },
+                        ]}
                       >
                         <Text style={styles.emojiText}>{tx.emoji}</Text>
                       </View>
 
                       <View className="flex-1">
-                        <Text className="text-[14px] font-bold text-[#111827]">
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "700",
+                            color: colors.textPrimary,
+                          }}
+                        >
                           {tx.title}
                         </Text>
-                        <Text className="text-[12px] font-medium text-[#6B7280] mt-0.5">
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: "500",
+                            color: colors.textMuted,
+                            marginTop: 2,
+                          }}
+                        >
                           {tx.category} • {tx.paymentMethod}
                         </Text>
                       </View>
@@ -174,13 +267,26 @@ export default function TransactionScreen({
                     {/* Right Amount & Time */}
                     <View className="items-end">
                       <Text
-                        className={`text-[14px] font-extrabold ${
-                          tx.isCredit ? "text-[#15803D]" : "text-[#111827]"
-                        }`}
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "800",
+                          color: tx.isCredit
+                            ? isDarkMode
+                              ? "#34D399"
+                              : "#15803D"
+                            : colors.textPrimary,
+                        }}
                       >
                         {tx.amount}
                       </Text>
-                      <Text className="text-[11px] font-medium text-[#9CA3AF] mt-0.5">
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: "500",
+                          color: colors.textMuted,
+                          marginTop: 2,
+                        }}
+                      >
                         {tx.time}
                       </Text>
                     </View>
@@ -193,7 +299,13 @@ export default function TransactionScreen({
 
         {filteredGroups.length === 0 && (
           <View className="items-center justify-center py-16">
-            <Text className="text-[14px] font-semibold text-gray-400">
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "600",
+                color: colors.textMuted,
+              }}
+            >
               No transactions found for {selectedFilter}
             </Text>
           </View>
@@ -220,6 +332,9 @@ export default function TransactionScreen({
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   headerGradient: {
     position: "absolute",
     top: 0,
@@ -229,6 +344,12 @@ const styles = StyleSheet.create({
   },
   headerIconButton: {
     backgroundColor: "rgba(184, 215, 202, 0.7)",
+  },
+  filterPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    marginRight: 10,
   },
   scrollContent: {
     paddingBottom: 120,

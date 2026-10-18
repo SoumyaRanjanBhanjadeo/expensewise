@@ -17,9 +17,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
+  const { themePreference, setThemePreference, isDarkMode, colors } =
+    useTheme();
 
   // User Profile State
   const [name, setName] = useState(user?.username || "ExpenseWise User");
@@ -150,17 +153,21 @@ export default function ProfileScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
       <StatusBar
-        barStyle="dark-content"
+        barStyle={colors.statusBarStyle}
         translucent
         backgroundColor="transparent"
       />
 
       {/* Atmospheric Soft Sage Gradient covering the top header */}
       <LinearGradient
-        colors={["#A1C4B5", "#B5D4C7", "#CBE3D7", "#DFEFE7", "#EEF4F1"]}
+        colors={
+          isDarkMode
+            ? ["#021F17", "#03261C", "#021A13"]
+            : ["#A1C4B5", "#B5D4C7", "#CBE3D7", "#DFEFE7", "#EEF4F1"]
+        }
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={styles.headerGradient}
@@ -171,12 +178,27 @@ export default function ProfileScreen({ navigation }) {
         <TouchableOpacity
           onPress={() => navigation?.goBack()}
           activeOpacity={0.8}
-          style={styles.headerIconButton}
+          style={[
+            styles.headerIconButton,
+            {
+              backgroundColor: isDarkMode
+                ? "#04281E"
+                : "rgba(184, 215, 202, 0.7)",
+              borderColor: colors.cardBorder,
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
         >
-          <Ionicons name="arrow-back" size={20} color="#1F382C" />
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isDarkMode ? "#FFFFFF" : "#1F382C"}
+          />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>My Profile</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+          My Profile
+        </Text>
 
         <TouchableOpacity
           onPress={() => {
@@ -187,12 +209,21 @@ export default function ProfileScreen({ navigation }) {
             }
           }}
           activeOpacity={0.8}
-          style={styles.headerIconButton}
+          style={[
+            styles.headerIconButton,
+            {
+              backgroundColor: isDarkMode
+                ? "#04281E"
+                : "rgba(184, 215, 202, 0.7)",
+              borderColor: colors.cardBorder,
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
         >
           <Ionicons
             name={isEditingInfo ? "checkmark" : "create-outline"}
             size={20}
-            color="#1F382C"
+            color={isDarkMode ? "#FFFFFF" : "#1F382C"}
           />
         </TouchableOpacity>
       </View>
@@ -203,19 +234,38 @@ export default function ProfileScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         {/* User Profile Card */}
-        <View style={styles.profileCard}>
+        <View
+          style={[
+            styles.profileCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
+        >
           {/* Avatar with Camera Badge */}
           <View style={styles.avatarWrapper}>
             {user?.avatar ? (
               <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
             ) : (
-              <View style={[styles.avatarImage, styles.avatarFallback]}>
-                <Ionicons name="person" size={40} color="#0F4634" />
+              <View
+                style={[
+                  styles.avatarImage,
+                  styles.avatarFallback,
+                  { backgroundColor: isDarkMode ? "#063A29" : "#E6F4EE" },
+                ]}
+              >
+                <Ionicons
+                  name="person"
+                  size={40}
+                  color={isDarkMode ? "#34D399" : "#0F4634"}
+                />
               </View>
             )}
             <TouchableOpacity
               activeOpacity={0.85}
-              style={styles.avatarCameraBadge}
+              style={[styles.avatarCameraBadge, { borderColor: colors.card }]}
               onPress={() =>
                 Alert.alert("Change Photo", "Avatar upload coming soon!")
               }
@@ -229,105 +279,214 @@ export default function ProfileScreen({ navigation }) {
             <TextInput
               value={name}
               onChangeText={setName}
-              style={styles.editNameInput}
+              style={[styles.editNameInput, { color: colors.textPrimary }]}
               placeholder="Full Name"
+              placeholderTextColor={colors.textMuted}
             />
           ) : (
-            <Text style={styles.profileName}>{name}</Text>
+            <Text style={[styles.profileName, { color: colors.textPrimary }]}>
+              {name}
+            </Text>
           )}
 
-          <Text style={styles.profileEmail}>{email}</Text>
+          <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
+            {email}
+          </Text>
         </View>
 
         {/* Account Quick Stats Card */}
-        <View style={styles.statsCard}>
+        <View
+          style={[
+            styles.statsCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
+        >
           <View style={styles.statCol}>
-            <Text style={styles.statValue}>₹18,420</Text>
-            <Text style={styles.statLabel}>Total Spent</Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+              ₹18,420
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+              Total Spent
+            </Text>
           </View>
 
-          <View style={styles.statDivider} />
+          <View
+            style={[styles.statDivider, { backgroundColor: colors.divider }]}
+          />
 
           <View style={styles.statCol}>
-            <Text style={styles.statValue}>34</Text>
-            <Text style={styles.statLabel}>Receipts</Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+              34
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+              Receipts
+            </Text>
           </View>
 
-          <View style={styles.statDivider} />
+          <View
+            style={[styles.statDivider, { backgroundColor: colors.divider }]}
+          />
 
           <View style={styles.statCol}>
-            <Text style={styles.statValue}>24%</Text>
-            <Text style={styles.statLabel}>Savings Rate</Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+              24%
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+              Savings Rate
+            </Text>
           </View>
         </View>
 
         {/* Personal Details Section */}
-        <View style={styles.sectionCard}>
+        <View
+          style={[
+            styles.sectionCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
+        >
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Personal Details</Text>
-            <TouchableOpacity
-              onPress={() => setIsEditingInfo(!isEditingInfo)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.editSectionBtnText}>
-                {isEditingInfo ? "Cancel" : "Edit"}
-              </Text>
-            </TouchableOpacity>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              Personal Details
+            </Text>
           </View>
 
           {/* Full Name Field */}
-          <View style={styles.infoRow}>
-            <View style={styles.infoIconCircle}>
-              <Ionicons name="person-outline" size={18} color="#0F4634" />
+          <View
+            style={[styles.infoRow, { borderBottomColor: colors.divider }]}
+          >
+            <View
+              style={[
+                styles.infoIconCircle,
+                { backgroundColor: isDarkMode ? "#063A29" : "#E6F4EE" },
+              ]}
+            >
+              <Ionicons
+                name="person-outline"
+                size={18}
+                color={isDarkMode ? "#34D399" : "#0F4634"}
+              />
             </View>
             <View style={styles.infoTextContainer}>
-              <Text style={styles.infoLabel}>Full Name</Text>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+                Full Name
+              </Text>
               {isEditingInfo ? (
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  style={styles.infoInput}
+                  style={[
+                    styles.infoInput,
+                    {
+                      color: colors.textPrimary,
+                      borderBottomColor: colors.activeBorder,
+                    },
+                  ]}
                 />
               ) : (
-                <Text style={styles.infoValue}>{name}</Text>
+                <Text
+                  style={[styles.infoValue, { color: colors.textPrimary }]}
+                >
+                  {name}
+                </Text>
               )}
             </View>
           </View>
 
           {/* Currency Field */}
           <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-            <View style={styles.infoIconCircle}>
-              <Ionicons name="cash-outline" size={18} color="#0F4634" />
+            <View
+              style={[
+                styles.infoIconCircle,
+                { backgroundColor: isDarkMode ? "#063A29" : "#E6F4EE" },
+              ]}
+            >
+              <Ionicons
+                name="cash-outline"
+                size={18}
+                color={isDarkMode ? "#34D399" : "#0F4634"}
+              />
             </View>
             <View style={styles.infoTextContainer}>
-              <Text style={styles.infoLabel}>Currency</Text>
-              <Text style={styles.infoValue}>₹ INR - Indian Rupee</Text>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+                Currency
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
+                ₹ INR - Indian Rupee
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Change Password Card */}
-        <View style={styles.sectionCard}>
+        <View
+          style={[
+            styles.sectionCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
+        >
           <View style={styles.sectionHeaderRow}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <View style={[styles.infoIconCircle, { marginRight: 8 }]}>
-                <Ionicons name="key-outline" size={18} color="#0F4634" />
+              <View
+                style={[
+                  styles.infoIconCircle,
+                  {
+                    marginRight: 8,
+                    backgroundColor: isDarkMode ? "#063A29" : "#E6F4EE",
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="key-outline"
+                  size={18}
+                  color={isDarkMode ? "#34D399" : "#0F4634"}
+                />
               </View>
-              <Text style={styles.sectionTitle}>Change Password</Text>
+              <Text
+                style={[styles.sectionTitle, { color: colors.textPrimary }]}
+              >
+                Change Password
+              </Text>
             </View>
           </View>
 
           {/* Current Password Field */}
           <View style={styles.passwordFieldWrapper}>
-            <Text style={styles.passwordInputLabel}>Current Password</Text>
-            <View style={styles.passwordInputRow}>
+            <Text
+              style={[styles.passwordInputLabel, { color: colors.textMuted }]}
+            >
+              Current Password
+            </Text>
+            <View
+              style={[
+                styles.passwordInputRow,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: colors.inputBorder,
+                },
+              ]}
+            >
               <TextInput
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 placeholder="Enter current password"
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showCurrentPass}
-                style={styles.passwordTextInput}
+                style={[
+                  styles.passwordTextInput,
+                  { color: colors.textPrimary },
+                ]}
               />
               <TouchableOpacity
                 onPress={() => setShowCurrentPass(!showCurrentPass)}
@@ -345,15 +504,30 @@ export default function ProfileScreen({ navigation }) {
 
           {/* New Password Field */}
           <View style={styles.passwordFieldWrapper}>
-            <Text style={styles.passwordInputLabel}>New Password</Text>
-            <View style={styles.passwordInputRow}>
+            <Text
+              style={[styles.passwordInputLabel, { color: colors.textMuted }]}
+            >
+              New Password
+            </Text>
+            <View
+              style={[
+                styles.passwordInputRow,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: colors.inputBorder,
+                },
+              ]}
+            >
               <TextInput
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="At least 6 characters"
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showNewPass}
-                style={styles.passwordTextInput}
+                style={[
+                  styles.passwordTextInput,
+                  { color: colors.textPrimary },
+                ]}
               />
               <TouchableOpacity
                 onPress={() => setShowNewPass(!showNewPass)}
@@ -391,15 +565,30 @@ export default function ProfileScreen({ navigation }) {
 
           {/* Confirm Password Field */}
           <View style={styles.passwordFieldWrapper}>
-            <Text style={styles.passwordInputLabel}>Confirm New Password</Text>
-            <View style={styles.passwordInputRow}>
+            <Text
+              style={[styles.passwordInputLabel, { color: colors.textMuted }]}
+            >
+              Confirm New Password
+            </Text>
+            <View
+              style={[
+                styles.passwordInputRow,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: colors.inputBorder,
+                },
+              ]}
+            >
               <TextInput
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Re-enter new password"
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showConfirmPass}
-                style={styles.passwordTextInput}
+                style={[
+                  styles.passwordTextInput,
+                  { color: colors.textPrimary },
+                ]}
               />
               <TouchableOpacity
                 onPress={() => setShowConfirmPass(!showConfirmPass)}
@@ -445,22 +634,228 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Preferences & Security Card */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
+        <View
+          style={[
+            styles.sectionCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              borderWidth: isDarkMode ? 1 : 0,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            Preferences
+          </Text>
+
+          {/* Theme Preference Selector */}
+          <View
+            style={{
+              marginBottom: 16,
+              paddingBottom: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.divider,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+            >
+              <View
+                style={[
+                  styles.infoIconCircle,
+                  { backgroundColor: isDarkMode ? "#063A29" : "#E6F4EE" },
+                ]}
+              >
+                <Ionicons
+                  name={isDarkMode ? "moon-outline" : "sunny-outline"}
+                  size={19}
+                  color={isDarkMode ? "#34D399" : "#0F4634"}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.toggleTitle, { color: colors.textPrimary }]}
+                >
+                  Appearance & Theme
+                </Text>
+                <Text
+                  style={[styles.toggleSubtitle, { color: colors.textMuted }]}
+                >
+                  {themePreference === "system"
+                    ? `System Default (${isDarkMode ? "Dark" : "Light"})`
+                    : themePreference === "dark"
+                    ? "Dark Mode"
+                    : "Light Mode (Default)"}
+                </Text>
+              </View>
+            </View>
+
+            {/* 3 Theme Options: Light, Dark, System */}
+            <View
+              style={{
+                flexDirection: "row",
+                backgroundColor: isDarkMode ? "#021A13" : "#F4F7F5",
+                borderRadius: 14,
+                padding: 4,
+                borderWidth: 1,
+                borderColor: colors.cardBorder,
+              }}
+            >
+              {/* Light Option */}
+              <TouchableOpacity
+                onPress={() => setThemePreference("light")}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1,
+                  paddingVertical: 9,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 10,
+                  backgroundColor:
+                    themePreference === "light"
+                      ? isDarkMode
+                        ? "#10B981"
+                        : "#0F4634"
+                      : "transparent",
+                  flexDirection: "row",
+                }}
+              >
+                <Ionicons
+                  name="sunny-outline"
+                  size={15}
+                  color={
+                    themePreference === "light" ? "#FFFFFF" : colors.textMuted
+                  }
+                  style={{ marginRight: 5 }}
+                />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: themePreference === "light" ? "700" : "600",
+                    color:
+                      themePreference === "light"
+                        ? "#FFFFFF"
+                        : colors.textMuted,
+                  }}
+                >
+                  Light
+                </Text>
+              </TouchableOpacity>
+
+              {/* Dark Option */}
+              <TouchableOpacity
+                onPress={() => setThemePreference("dark")}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1,
+                  paddingVertical: 9,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 10,
+                  backgroundColor:
+                    themePreference === "dark"
+                      ? isDarkMode
+                        ? "#10B981"
+                        : "#0F4634"
+                      : "transparent",
+                  flexDirection: "row",
+                }}
+              >
+                <Ionicons
+                  name="moon-outline"
+                  size={15}
+                  color={
+                    themePreference === "dark" ? "#FFFFFF" : colors.textMuted
+                  }
+                  style={{ marginRight: 5 }}
+                />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: themePreference === "dark" ? "700" : "600",
+                    color:
+                      themePreference === "dark"
+                        ? "#FFFFFF"
+                        : colors.textMuted,
+                  }}
+                >
+                  Dark
+                </Text>
+              </TouchableOpacity>
+
+              {/* System Option */}
+              <TouchableOpacity
+                onPress={() => setThemePreference("system")}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1,
+                  paddingVertical: 9,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 10,
+                  backgroundColor:
+                    themePreference === "system"
+                      ? isDarkMode
+                        ? "#10B981"
+                        : "#0F4634"
+                      : "transparent",
+                  flexDirection: "row",
+                }}
+              >
+                <Ionicons
+                  name="phone-portrait-outline"
+                  size={15}
+                  color={
+                    themePreference === "system" ? "#FFFFFF" : colors.textMuted
+                  }
+                  style={{ marginRight: 5 }}
+                />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: themePreference === "system" ? "700" : "600",
+                    color:
+                      themePreference === "system"
+                        ? "#FFFFFF"
+                        : colors.textMuted,
+                  }}
+                >
+                  System
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {/* Biometrics Toggle */}
-          <View style={styles.toggleRow}>
+          <View
+            style={[styles.toggleRow, { borderBottomColor: colors.divider }]}
+          >
             <View style={styles.toggleLeft}>
-              <View style={styles.infoIconCircle}>
+              <View
+                style={[
+                  styles.infoIconCircle,
+                  { backgroundColor: isDarkMode ? "#063A29" : "#E6F4EE" },
+                ]}
+              >
                 <Ionicons
                   name="finger-print-outline"
                   size={19}
-                  color="#0F4634"
+                  color={isDarkMode ? "#34D399" : "#0F4634"}
                 />
               </View>
               <View>
-                <Text style={styles.toggleTitle}>Biometric Lock</Text>
-                <Text style={styles.toggleSubtitle}>
+                <Text
+                  style={[styles.toggleTitle, { color: colors.textPrimary }]}
+                >
+                  Biometric Lock
+                </Text>
+                <Text
+                  style={[styles.toggleSubtitle, { color: colors.textMuted }]}
+                >
                   Require FaceID or Fingerprint
                 </Text>
               </View>
@@ -468,7 +863,10 @@ export default function ProfileScreen({ navigation }) {
             <Switch
               value={biometricsEnabled}
               onValueChange={handleToggleBiometrics}
-              trackColor={{ false: "#CBD5E1", true: "#86EFAC" }}
+              trackColor={{
+                false: isDarkMode ? "#1F3B2F" : "#CBD5E1",
+                true: "#86EFAC",
+              }}
               thumbColor={biometricsEnabled ? "#10B981" : "#F8FAFC"}
             />
           </View>
@@ -476,16 +874,27 @@ export default function ProfileScreen({ navigation }) {
           {/* Notifications Toggle */}
           <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
             <View style={styles.toggleLeft}>
-              <View style={styles.infoIconCircle}>
+              <View
+                style={[
+                  styles.infoIconCircle,
+                  { backgroundColor: isDarkMode ? "#063A29" : "#E6F4EE" },
+                ]}
+              >
                 <Ionicons
                   name="notifications-outline"
                   size={19}
-                  color="#0F4634"
+                  color={isDarkMode ? "#34D399" : "#0F4634"}
                 />
               </View>
               <View>
-                <Text style={styles.toggleTitle}>Expense Reminders</Text>
-                <Text style={styles.toggleSubtitle}>
+                <Text
+                  style={[styles.toggleTitle, { color: colors.textPrimary }]}
+                >
+                  Expense Reminders
+                </Text>
+                <Text
+                  style={[styles.toggleSubtitle, { color: colors.textMuted }]}
+                >
                   Daily budget alert notifications
                 </Text>
               </View>
@@ -493,7 +902,10 @@ export default function ProfileScreen({ navigation }) {
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotificationsEnabled}
-              trackColor={{ false: "#CBD5E1", true: "#86EFAC" }}
+              trackColor={{
+                false: isDarkMode ? "#1F3B2F" : "#CBD5E1",
+                true: "#86EFAC",
+              }}
               thumbColor={notificationsEnabled ? "#10B981" : "#F8FAFC"}
             />
           </View>

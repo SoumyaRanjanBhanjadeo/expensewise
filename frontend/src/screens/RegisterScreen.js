@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   ScrollView,
   StatusBar,
   Image,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -40,6 +39,19 @@ export default function RegisterScreen({ navigation }) {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
 
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // Automatically clear error message after 3 seconds
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
+
   const handleRegister = async () => {
     setErrorMessage("");
 
@@ -57,6 +69,7 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
+    setIsRegistering(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
       await register(username.trim(), cleanEmail, password);
@@ -68,13 +81,13 @@ export default function RegisterScreen({ navigation }) {
       setErrorMessage(
         getErrorMessage(
           error,
-          "We couldn't create your account right now. Please try again in a moment.",
+          "Can't create your account right now. Please try again in a moment.",
         ),
       );
+    } finally {
+      setIsRegistering(false);
     }
   };
-
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleGoogleSignup = async () => {
     setErrorMessage("");
@@ -94,7 +107,7 @@ export default function RegisterScreen({ navigation }) {
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
         redirectUri,
-        { showInRecents: true }
+        { showInRecents: true },
       );
 
       if (result?.type === "success" && result.url) {
@@ -119,7 +132,7 @@ export default function RegisterScreen({ navigation }) {
               "https://www.googleapis.com/oauth2/v3/userinfo",
               {
                 headers: { Authorization: `Bearer ${accessToken}` },
-              }
+              },
             );
             if (res.ok) profileData = await res.json();
           } catch (e) {
@@ -130,7 +143,7 @@ export default function RegisterScreen({ navigation }) {
         if ((!profileData || !profileData.email) && idToken) {
           try {
             const res = await fetch(
-              `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+              `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
             );
             if (res.ok) profileData = await res.json();
           } catch (e) {
@@ -159,8 +172,8 @@ export default function RegisterScreen({ navigation }) {
       setErrorMessage(
         getErrorMessage(
           error,
-          "Google sign-up could not be completed. Please try again."
-        )
+          "Google sign-up could not be completed. Please try again.",
+        ),
       );
     } finally {
       setIsGoogleLoading(false);
@@ -168,24 +181,17 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <View className="flex-1 bg-[#021812] relative">
+    <View className="flex-1 bg-[#F4F9F6] relative">
       <StatusBar
-        barStyle="light-content"
+        barStyle="dark-content"
         translucent
         backgroundColor="transparent"
       />
 
-      {/* Atmospheric Background Gradients */}
-      <LinearGradient
-        colors={["#03261C", "#021A13", "#010F0B"]}
-        className="absolute inset-0"
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      />
-
-      {/* Ambient glows */}
-      <View className="absolute -top-24 -right-20 w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-      <View className="absolute bottom-1/4 -left-28 w-72 h-72 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
+      {/* Subtle ambient light glows */}
+      <View className="absolute -top-32 -left-20 w-80 h-80 rounded-full bg-emerald-200/30 blur-3xl pointer-events-none" />
+      <View className="absolute top-1/2 -right-24 w-80 h-80 rounded-full bg-teal-200/25 blur-3xl pointer-events-none" />
+      <View className="absolute -bottom-20 left-10 w-72 h-72 rounded-full bg-emerald-100/40 blur-3xl pointer-events-none" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -205,63 +211,62 @@ export default function RegisterScreen({ navigation }) {
           <TouchableOpacity
             onPress={() => navigation?.goBack()}
             activeOpacity={0.7}
-            className="w-9 h-9 rounded-full bg-[#04281E] border border-emerald-500/30 items-center justify-center mb-3"
+            className="w-9 h-9 rounded-full bg-white border border-[#DCE7E1] items-center justify-center mb-3 shadow-xs"
           >
-            <Ionicons name="chevron-back" size={20} color="#34D399" />
+            <Ionicons name="chevron-back" size={20} color="#0F4634" />
           </TouchableOpacity>
 
           {/* Header */}
-          <View className="items-center mb-4">
-            <View className="w-12 h-12 rounded-2xl bg-emerald-950/90 border border-emerald-500/30 items-center justify-center mb-2 shadow-md shadow-emerald-950">
+          <View className="items-center mb-5">
+            <View className="w-14 h-14 rounded-2xl bg-emerald-950/90 border border-emerald-500/30 items-center justify-center mb-3 shadow-md shadow-emerald-950">
               <Image
                 source={require("../../assets/expenseicon.png")}
-                style={{ width: 32, height: 32, borderRadius: 6 }}
+                style={{ width: 38, height: 38, borderRadius: 8 }}
                 resizeMode="contain"
               />
             </View>
 
-            <Text className="text-2xl font-bold text-white tracking-tight">
+            <Text className="text-[26px] font-bold text-[#0F4634] tracking-tight">
               Create Account
             </Text>
-            <Text className="text-emerald-100/60 text-xs mt-0.5 text-center">
+            <Text className="text-[#52796F] text-[13px] mt-1 text-center font-medium">
               Start mastering your money with ExpenseWise
             </Text>
           </View>
 
           {/* Error Banner */}
           {errorMessage && (
-            <View className="w-full mb-4 bg-red-500/15 border border-red-400/40 rounded-xl px-4 py-2.5 flex-row items-center">
+            <View className="w-full mb-4 bg-[#FEF2F2] border border-[#FECACA] rounded-2xl px-4 py-3 flex-row items-center shadow-xs">
               <Ionicons
                 name="alert-circle"
                 size={18}
-                color="#F87171"
+                color="#DC2626"
                 style={{ marginRight: 8 }}
               />
-              <Text className="text-red-300 text-xs font-medium flex-1">
+              <Text className="text-[#991B1B] text-xs font-semibold flex-1">
                 {errorMessage}
               </Text>
             </View>
           )}
 
           {/* Form Card */}
-          <View className="w-full bg-[#04281E]/70 border border-emerald-500/20 rounded-2xl p-5 shadow-xl">
+          <View className="w-full bg-white border border-[#E3EDE7] rounded-3xl p-6 shadow-md shadow-emerald-950/5">
             {/* Username Field */}
-            <View className="mb-3">
-              <Text className="text-emerald-200/80 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+            <View className="mb-3.5">
+              <Text className="text-[#1F382C] text-[11px] font-bold uppercase tracking-wider mb-1.5">
                 Username
               </Text>
               <View
                 style={{
-                  borderColor: usernameFocused
-                    ? "#34D399"
-                    : "rgba(16, 185, 129, 0.25)",
+                  borderColor: usernameFocused ? "#10B981" : "#DCE7E1",
+                  backgroundColor: usernameFocused ? "#FFFFFF" : "#F8FAF9",
                 }}
-                className="flex-row items-center bg-[#021812]/80 border rounded-xl px-3.5 py-2.5"
+                className="flex-row items-center border rounded-2xl px-3.5 py-2.5"
               >
                 <Ionicons
                   name="person-outline"
                   size={18}
-                  color={usernameFocused ? "#34D399" : "#6EE7B7"}
+                  color={usernameFocused ? "#10B981" : "#52796F"}
                   style={{ marginRight: 8 }}
                 />
                 <TextInput
@@ -270,31 +275,30 @@ export default function RegisterScreen({ navigation }) {
                   onFocus={() => setUsernameFocused(true)}
                   onBlur={() => setUsernameFocused(false)}
                   placeholder="username"
-                  placeholderTextColor="rgba(110, 231, 183, 0.4)"
+                  placeholderTextColor="#8FA89B"
                   autoCapitalize="none"
                   style={{ paddingVertical: 0 }}
-                  className="flex-1 text-white text-sm font-medium"
+                  className="flex-1 text-[#0F4634] text-sm font-medium"
                 />
               </View>
             </View>
 
             {/* Email Field */}
-            <View className="mb-3">
-              <Text className="text-emerald-200/80 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+            <View className="mb-3.5">
+              <Text className="text-[#1F382C] text-[11px] font-bold uppercase tracking-wider mb-1.5">
                 Email Address
               </Text>
               <View
                 style={{
-                  borderColor: emailFocused
-                    ? "#34D399"
-                    : "rgba(16, 185, 129, 0.25)",
+                  borderColor: emailFocused ? "#10B981" : "#DCE7E1",
+                  backgroundColor: emailFocused ? "#FFFFFF" : "#F8FAF9",
                 }}
-                className="flex-row items-center bg-[#021812]/80 border rounded-xl px-3.5 py-2.5"
+                className="flex-row items-center border rounded-2xl px-3.5 py-2.5"
               >
                 <Ionicons
                   name="mail-outline"
                   size={18}
-                  color={emailFocused ? "#34D399" : "#6EE7B7"}
+                  color={emailFocused ? "#10B981" : "#52796F"}
                   style={{ marginRight: 8 }}
                 />
                 <TextInput
@@ -303,32 +307,31 @@ export default function RegisterScreen({ navigation }) {
                   onFocus={() => setEmailFocused(true)}
                   onBlur={() => setEmailFocused(false)}
                   placeholder="name@example.com"
-                  placeholderTextColor="rgba(110, 231, 183, 0.4)"
+                  placeholderTextColor="#8FA89B"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   style={{ paddingVertical: 0 }}
-                  className="flex-1 text-white text-sm font-medium"
+                  className="flex-1 text-[#0F4634] text-sm font-medium"
                 />
               </View>
             </View>
 
             {/* Password Field */}
-            <View className="mb-3">
-              <Text className="text-emerald-200/80 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+            <View className="mb-3.5">
+              <Text className="text-[#1F382C] text-[11px] font-bold uppercase tracking-wider mb-1.5">
                 Password
               </Text>
               <View
                 style={{
-                  borderColor: passwordFocused
-                    ? "#34D399"
-                    : "rgba(16, 185, 129, 0.25)",
+                  borderColor: passwordFocused ? "#10B981" : "#DCE7E1",
+                  backgroundColor: passwordFocused ? "#FFFFFF" : "#F8FAF9",
                 }}
-                className="flex-row items-center bg-[#021812]/80 border rounded-xl px-3.5 py-2.5"
+                className="flex-row items-center border rounded-2xl px-3.5 py-2.5"
               >
                 <Ionicons
                   name="lock-closed-outline"
                   size={18}
-                  color={passwordFocused ? "#34D399" : "#6EE7B7"}
+                  color={passwordFocused ? "#10B981" : "#52796F"}
                   style={{ marginRight: 8 }}
                 />
                 <TextInput
@@ -337,11 +340,11 @@ export default function RegisterScreen({ navigation }) {
                   onFocus={() => setPasswordFocused(true)}
                   onBlur={() => setPasswordFocused(false)}
                   placeholder="••••••••"
-                  placeholderTextColor="rgba(110, 231, 183, 0.4)"
+                  placeholderTextColor="#8FA89B"
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   style={{ paddingVertical: 0 }}
-                  className="flex-1 text-white text-sm font-medium"
+                  className="flex-1 text-[#0F4634] text-sm font-medium"
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -351,7 +354,7 @@ export default function RegisterScreen({ navigation }) {
                   <Ionicons
                     name={showPassword ? "eye-off-outline" : "eye-outline"}
                     size={18}
-                    color="rgba(110, 231, 183, 0.7)"
+                    color="#52796F"
                   />
                 </TouchableOpacity>
               </View>
@@ -359,21 +362,22 @@ export default function RegisterScreen({ navigation }) {
 
             {/* Confirm Password Field */}
             <View className="mb-4">
-              <Text className="text-emerald-200/80 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+              <Text className="text-[#1F382C] text-[11px] font-bold uppercase tracking-wider mb-1.5">
                 Confirm Password
               </Text>
               <View
                 style={{
-                  borderColor: confirmPasswordFocused
-                    ? "#34D399"
-                    : "rgba(16, 185, 129, 0.25)",
+                  borderColor: confirmPasswordFocused ? "#10B981" : "#DCE7E1",
+                  backgroundColor: confirmPasswordFocused
+                    ? "#FFFFFF"
+                    : "#F8FAF9",
                 }}
-                className="flex-row items-center bg-[#021812]/80 border rounded-xl px-3.5 py-2.5"
+                className="flex-row items-center border rounded-2xl px-3.5 py-2.5"
               >
                 <Ionicons
                   name="shield-checkmark-outline"
                   size={18}
-                  color={confirmPasswordFocused ? "#34D399" : "#6EE7B7"}
+                  color={confirmPasswordFocused ? "#10B981" : "#52796F"}
                   style={{ marginRight: 8 }}
                 />
                 <TextInput
@@ -382,11 +386,11 @@ export default function RegisterScreen({ navigation }) {
                   onFocus={() => setConfirmPasswordFocused(true)}
                   onBlur={() => setConfirmPasswordFocused(false)}
                   placeholder="••••••••"
-                  placeholderTextColor="rgba(110, 231, 183, 0.4)"
+                  placeholderTextColor="#8FA89B"
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                   style={{ paddingVertical: 0 }}
-                  className="flex-1 text-white text-sm font-medium"
+                  className="flex-1 text-[#0F4634] text-sm font-medium"
                 />
                 <TouchableOpacity
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -398,7 +402,7 @@ export default function RegisterScreen({ navigation }) {
                       showConfirmPassword ? "eye-off-outline" : "eye-outline"
                     }
                     size={18}
-                    color="rgba(110, 231, 183, 0.7)"
+                    color="#52796F"
                   />
                 </TouchableOpacity>
               </View>
@@ -407,47 +411,52 @@ export default function RegisterScreen({ navigation }) {
             {/* Create Account Button */}
             <TouchableOpacity
               onPress={handleRegister}
+              disabled={isRegistering}
               activeOpacity={0.85}
               style={{
-                borderRadius: 12,
+                borderRadius: 14,
                 overflow: "hidden",
                 marginBottom: 16,
+                opacity: isRegistering ? 0.7 : 1,
               }}
             >
               <LinearGradient
-                colors={["#10B981", "#059669"]}
+                colors={["#0F4634", "#155E47"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
-                  paddingVertical: 11,
+                  paddingVertical: 13,
                   paddingHorizontal: 16,
-                  borderRadius: 12,
+                  borderRadius: 14,
                 }}
               >
-                <Text
-                  style={{
-                    color: "#011B13",
-                    fontWeight: "700",
-                    fontSize: 14,
-                    letterSpacing: 0.5,
-                    marginRight: 6,
-                  }}
-                >
-                  Create Account
-                </Text>
+                {isRegistering ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text
+                    style={{
+                      color: "#FFFFFF",
+                      fontWeight: "700",
+                      fontSize: 15,
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    Create Account
+                  </Text>
+                )}
               </LinearGradient>
             </TouchableOpacity>
 
             {/* Divider */}
             <View className="flex-row items-center mb-4">
-              <View className="flex-1 h-[1px] bg-emerald-500/20" />
-              <Text className="text-emerald-200/50 text-[10px] font-medium px-2.5 uppercase tracking-wider">
+              <View className="flex-1 h-[1px] bg-[#E3EDE7]" />
+              <Text className="text-[#7A998B] text-[10px] font-bold px-2.5 uppercase tracking-wider">
                 Or sign up with
               </Text>
-              <View className="flex-1 h-[1px] bg-emerald-500/20" />
+              <View className="flex-1 h-[1px] bg-[#E3EDE7]" />
             </View>
 
             {/* Google Signup */}
@@ -461,30 +470,31 @@ export default function RegisterScreen({ navigation }) {
                 justifyContent: "center",
                 paddingVertical: 11,
                 paddingHorizontal: 16,
-                borderRadius: 12,
-                backgroundColor: "rgba(2, 24, 18, 0.9)",
+                borderRadius: 14,
+                backgroundColor: "#F8FAF9",
                 borderWidth: 1,
-                borderColor: "rgba(16, 185, 129, 0.3)",
+                borderColor: "#DCE7E1",
+                opacity: isGoogleLoading ? 0.7 : 1,
               }}
             >
               {isGoogleLoading ? (
                 <ActivityIndicator
                   size="small"
-                  color="#34D399"
+                  color="#0F4634"
                   style={{ marginRight: 8 }}
                 />
               ) : (
                 <Ionicons
                   name="logo-google"
                   size={18}
-                  color="#34D399"
+                  color="#0F4634"
                   style={{ marginRight: 8 }}
                 />
               )}
               <Text
                 style={{
-                  color: "#D1FAE5",
-                  fontWeight: "600",
+                  color: "#0F4634",
+                  fontWeight: "700",
                   fontSize: 13,
                 }}
               >
@@ -494,17 +504,15 @@ export default function RegisterScreen({ navigation }) {
           </View>
 
           {/* Footer - Switch to Login */}
-          <View className="flex-row items-center justify-center mt-5">
-            <Text className="text-emerald-100/60 text-xs">
+          <View className="flex-row items-center justify-center mt-6">
+            <Text className="text-[#52796F] text-xs font-medium">
               Already have an account?{" "}
             </Text>
             <TouchableOpacity
               onPress={() => navigation?.navigate("Login")}
               activeOpacity={0.7}
             >
-              <Text className="text-emerald-400 font-bold text-xs">
-                Sign In
-              </Text>
+              <Text className="text-[#0F4634] font-bold text-xs">Sign In</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

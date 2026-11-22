@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../context/AuthContext";
+import ScreenBackground from "../components/ScreenBackground";
 
 export default function SplashScreen({ navigation, onFinish }) {
   const { user, isLoading } = useAuth();
@@ -112,7 +113,7 @@ export default function SplashScreen({ navigation, onFinish }) {
   });
 
   return (
-    <View className="flex-1 bg-[#021812] relative overflow-hidden">
+    <ScreenBackground className="flex-1 bg-[#021812] relative overflow-hidden">
       <StatusBar
         barStyle="light-content"
         translucent
@@ -229,6 +230,6 @@ export default function SplashScreen({ navigation, onFinish }) {
           {percent}%
         </Text>
       </View>
-    </View>
+    </ScreenBackground>
   );
 }

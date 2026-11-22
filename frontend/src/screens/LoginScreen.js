@@ -26,6 +26,7 @@ import {
   getToken,
   getErrorMessage,
 } from "../services/auth";
+import ScreenBackground from "../components/ScreenBackground";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -183,9 +184,13 @@ export default function LoginScreen({ navigation, route }) {
                   );
                   const lastUser = lastUserRaw ? JSON.parse(lastUserRaw) : null;
                   const targetEmail = email.trim() || lastUser?.email;
-                  await biometricLogin(targetEmail);
+                  if (targetEmail) {
+                    await biometricLogin(targetEmail);
+                  }
                 } catch (e) {
-                  console.warn("Biometric backend sign-in note:", e);
+                  if (__DEV__) {
+                    console.log("[Biometric] Backend sync note:", e?.message || e);
+                  }
                 }
                 setTimeout(() => {
                   navigation?.replace("Dashboard");
@@ -218,9 +223,13 @@ export default function LoginScreen({ navigation, route }) {
           );
           const lastUser = lastUserRaw ? JSON.parse(lastUserRaw) : null;
           const targetEmail = email.trim() || lastUser?.email;
-          await biometricLogin(targetEmail);
+          if (targetEmail) {
+            await biometricLogin(targetEmail);
+          }
         } catch (e) {
-          console.warn("Biometric backend sign-in note:", e);
+          if (__DEV__) {
+            console.log("[Biometric] Backend sync note:", e?.message || e);
+          }
         }
 
         setTimeout(() => {
@@ -568,7 +577,7 @@ export default function LoginScreen({ navigation, route }) {
   };
 
   return (
-    <View className="flex-1 bg-[#F4F9F6] relative">
+    <ScreenBackground className="flex-1 bg-[#F4F9F6] relative">
       <StatusBar
         barStyle="dark-content"
         translucent
@@ -1318,6 +1327,6 @@ export default function LoginScreen({ navigation, route }) {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </ScreenBackground>
   );
 }

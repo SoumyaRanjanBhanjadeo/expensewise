@@ -36,10 +36,10 @@ export const getApiBaseUrl = () => {
 
   // 4. Default fallback: use current Wi-Fi LAN IP or Android emulator loopback
   if (Platform.OS === "android") {
-    return "http://192.168.1.3:6000/api";
+    return "http://192.168.1.8:6000/api";
   }
 
-  return "http://192.168.1.3:6000/api";
+  return "http://192.168.1.8:6000/api";
 };
 
 export const API_URL = getApiBaseUrl();

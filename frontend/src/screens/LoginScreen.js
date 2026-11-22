@@ -26,6 +26,7 @@ import {
   getToken,
   getErrorMessage,
 } from "../services/auth";
+import ScreenBackground from "../components/ScreenBackground";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -568,7 +569,7 @@ export default function LoginScreen({ navigation, route }) {
   };
 
   return (
-    <View className="flex-1 bg-[#F4F9F6] relative">
+    <ScreenBackground className="flex-1 bg-[#F4F9F6] relative">
       <StatusBar
         barStyle="dark-content"
         translucent
@@ -1318,6 +1319,6 @@ export default function LoginScreen({ navigation, route }) {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </ScreenBackground>
   );
 }
